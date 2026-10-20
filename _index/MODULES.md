@@ -2,7 +2,7 @@
 
 Read this first when resuming. One line per module. Update the status the moment work on a module starts or stops — this file is the entire memory of where things stand.
 
-- [x] `core-data` — one local data layer: Room, repositories, IDs/timestamps — status: drafted — build: not-started
+- [x] `core-data` — one local data layer: Room, repositories, IDs/timestamps — status: drafted — build: built
 - [x] `roster` — classes, students, student page, Excel/CSV import — status: drafted — build: not-started
 - [x] `app-shell` — nav, theme, Today home screen, share helpers — status: drafted — build: not-started
 - [x] `attendance` — tap-absentees screen, counters, edit past dates — status: drafted — build: not-started

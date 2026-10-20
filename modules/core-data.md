@@ -3,7 +3,7 @@ module: core-data
 status: drafted   # planned · researching · drafted · needs-redo
 consumes: []      # other module slugs / interfaces this module needs (use _shared/glossary.md terms)
 produces: ["data-repositories"]      # what this module exposes to others (use _shared/glossary.md terms)
-build: not-started   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
+build: built   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
 last-updated: 2026-10-20
 ---
 
@@ -79,12 +79,21 @@ Everything downstream depends on this card being boring and stable, so each choi
 - `AppContainer` lives on the `Application` class; feature ViewModels get repositories through it, never through constructors reaching for Room.
 
 ## Build progress
-{Left blank by the blueprint skill. Implementing agents fill and update this after every chunk of work.}
-- **Owner:** {agent / teammate name, or none}
+- **Owner:** opencode (lead + builder)
 - **Coded:**
-  - {`path/to/file` — what is done in it}
-- **Remaining** (next first):
-  1. {next piece of work}
-- **Blocked on:** {nothing / what and who}
-- **Handoff note:** {what the next agent should know — where you stopped, any trap}
-- **Last checkpoint:** {ISO timestamp}
+  - `gradle/libs.versions.toml` — added ksp `2.3.12`, room `2.8.5`, coroutines `1.11.0` + plugin/library entries (all verified on live Maven repos; KSP ≥2.3 versions independently of Kotlin, so 2.3.12 pairs with the skeleton's Kotlin 2.2.10 — resolves this card's Open question)
+  - `build.gradle.kts` (root) — room + ksp plugins `apply false`
+  - `app/build.gradle.kts` — plugins applied, `room { schemaDirectory("$projectDir/schemas") }`, room-runtime / room-compiler(ksp) / coroutines-android deps
+  - `app/src/main/java/com/example/helper/coredata/entity/` — all 10 entities: `SchoolClass` (named `SchoolClass`, not `Class`, to avoid shadowing `java.lang.Class`), `Student`, `AttendanceRecord` (+ `AttendanceStatus` enum, unique (studentId, dateEpochDay) index, optional `period` kept null), `FeedbackTag`, `FeedbackNote` (tagId FK SET NULL + denormalized `tagLabel`), `Announcement` (classId SET NULL + denormalized `className`), `AnnouncementTemplate` (+ `lastUsedAt` for recent-first), `ContactLogEntry` (+ denormalized `studentName`), `Homework`, `Attachment` (+ `AttachmentKind` enum). All rows: UUID String PK + createdAt/updatedAt epoch millis.
+  - `app/src/main/java/com/example/helper/coredata/Converters.kt` — enum↔String TypeConverters
+  - `app/src/main/java/com/example/helper/coredata/dao/` — 7 DAOs (SchoolClass, Student, Attendance incl. `ClassDayCount`/`StudentStatusCount` projections for Today nudges + export, Feedback, Announcement, ContactLog, Homework incl. `HomeworkWithAttachments` @Relation); Flow reads + suspend writes only
+  - `app/src/main/java/com/example/helper/coredata/AppDatabase.kt` — v1, all 10 entities, `exportSchema = true`, no destructive fallbacks
+  - `app/src/main/java/com/example/helper/coredata/migration/Migrations.kt` — empty `ALL` registry, ready for v2
+  - `app/src/main/java/com/example/helper/coredata/AppContainer.kt` + `HelperApplication.kt` + manifest `android:name` — manual DI on the Application
+  - `app/src/main/java/com/example/helper/coredata/repository/` — 7 repositories (the `data-repositories` contract): UUID/timestamp stamping, `AttendanceRepository.commitSession`/`setStatus`/`setNote` per the attendance card's write model, `FeedbackRepository.addNote` commit-on-tap + `deleteNote` undo, `HomeworkRepository.deleteAttachment` returns the row so the caller deletes the file
+  - `app/schemas/com.example.helper.coredata.AppDatabase/1.json` — exported baseline schema (committed; input for future migrations)
+  - `app/src/main/java/com/example/helper/MainActivity.kt` — baseline repair: was a corrupted merge with a foreign flappybird project (committed broken in `bb27e08`); rewritten as a clean template so the project compiles. `app-shell` replaces it later.
+- **Remaining:** none — every file in `File & folder layout` is coded.
+- **Blocked on:** nothing
+- **Handoff note:** `data-repositories` is live: feature modules get repositories via `(context.applicationContext as HelperApplication).container`. Dates everywhere are epoch-day `Long`s (`LocalDate.toEpochDay()`), never java.time in this layer. DAO queries that features may still need can be added freely (DAO changes are not schema migrations); schema changes need a `Migration` in `migration/` + version bump. Never enable destructive fallbacks.
+- **Last checkpoint:** 2026-10-20T22:20+05:30
