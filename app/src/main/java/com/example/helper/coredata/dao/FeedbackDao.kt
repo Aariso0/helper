@@ -2,6 +2,7 @@ package com.example.helper.coredata.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Upsert
 import com.example.helper.coredata.entity.FeedbackNote
@@ -24,6 +25,9 @@ interface FeedbackDao {
 
     @Insert
     suspend fun insertTag(tag: FeedbackTag)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertTagsIfAbsent(tags: List<FeedbackTag>)
 
     @Query("DELETE FROM feedback_tags WHERE id = :id")
     suspend fun deleteTag(id: String)

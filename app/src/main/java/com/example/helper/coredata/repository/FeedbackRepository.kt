@@ -35,6 +35,12 @@ class FeedbackRepository(private val dao: FeedbackDao) {
         return tag
     }
 
+    /**
+     * Idempotent seeding: inserts only rows whose id is unknown, so teacher
+     * renames/deletions of seeded tags survive re-seeding.
+     */
+    suspend fun ensureTags(tags: List<FeedbackTag>) = dao.insertTagsIfAbsent(tags)
+
     suspend fun renameTag(tagId: String, label: String) {
         val trimmed = label.trim()
         if (trimmed.isEmpty()) return

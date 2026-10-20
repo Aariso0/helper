@@ -6,7 +6,7 @@ Read this first when resuming. One line per module. Update the status the moment
 - [x] `roster` — classes, students, student page, Excel/CSV import — status: drafted — build: not-started
 - [x] `app-shell` — nav, theme, Today home screen, share helpers — status: drafted — build: not-started
 - [x] `attendance` — tap-absentees screen, counters, edit past dates — status: drafted — build: not-started
-- [x] `student-feedback` — quick notes with editable preset tags — status: drafted — build: not-started
+- [x] `student-feedback` — quick notes with editable preset tags — status: drafted — build: built
 - [x] `homework` — compose with attachments, share via share sheet — status: drafted — build: not-started
 - [x] `parents` — manual announcements + parent contact log — status: drafted — build: not-started
 - [x] `export-backup` — summaries, CSV/PDF export, manual backup/restore — status: drafted — build: not-started
