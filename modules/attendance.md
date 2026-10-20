@@ -3,8 +3,8 @@ module: attendance
 status: drafted   # planned · researching · drafted · needs-redo
 consumes: ["data-repositories", "share-helpers"]      # other module slugs / interfaces this module needs (use _shared/glossary.md terms)
 produces: ["attendance-screen"]      # what this module exposes to others (use _shared/glossary.md terms)
-build: not-started   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
-last-updated: 2026-10-20
+build: built   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
+last-updated: 2026-10-21
 ---
 
 # Attendance
@@ -74,12 +74,16 @@ The screen is the product's thesis ("faster than Excel"), so every choice serves
 - Class sizes are 40–60 (project scale): `LazyColumn` + derived counters are comfortably sufficient; do not add pagination or search indexing.
 
 ## Build progress
-{Left blank by the blueprint skill. Implementing agents fill and update this after every chunk of work.}
-- **Owner:** {agent / teammate name, or none}
+- **Owner:** `opencode` (lead+teammate). DONE 2026-10-21T00:27+05:30.
 - **Coded:**
-  - {`path/to/file` — what is done in it}
+  - `viewmodel/AttendanceViewModel.kt` — draft status map seeded from existing class-day records or the all-Present preset; live counters derived from the draft (`UiState.counters`, never stored); first change / Save on a fresh session materializes the whole class-day via `commitSession`, later taps `setStatus` single rows; `Mutex` serializes writes so rapid taps can't interleave; date switch re-seeds through repositories; `save()` returns absent names for the share shortcut; `attendanceViewModel(classId, dateEpochDay)` provider keyed per class
+  - `ui/AttendanceScreen.kt` — top bar (class name, back); date button ("Today · Fri, 21 Oct 2026") → M3 DatePicker (UTC epoch-millis ↔ desugared LocalDate); live counter "Present 28 · Absent 2" (absent in error color, late/excused appended when nonzero); LazyColumn of rows; bottom-anchored 56dp Save; Save → snackbar: "no absences" plain, else "N absent" + **Share** action building "Absent — Class, date: • names" through `shareText`; per-tap + per-sheet-change **Undo** snackbar (restores previous status through the same commit path); empty/no-match states
+  - `ui/StudentRow.kt` — one big 64dp tap target (`combinedClickable`): tap = present/absent toggle, long-press = status sheet; trailing status (muted check / Absent in error / Late in tertiary / Excused in secondary); roll number subtitle; no checkboxes
+  - `ui/StatusSheet.kt` — ModalBottomSheet Present/Absent/Late/Excused with current checkmark
+  - `search/JumpToStudent.kt` — filter field (name or roll number); counters always reflect the whole class
+  - `nav/AppNavHost.kt` — ATTENDANCE route placeholder replaced with the real screen (`classId` + `dateEpochDay` parsed in nav; `LocalDate.now()` default); doc comment updated
 - **Remaining** (next first):
-  1. {next piece of work}
-- **Blocked on:** {nothing / what and who}
-- **Handoff note:** {what the next agent should know — where you stopped, any trap}
-- **Last checkpoint:** {ISO timestamp}
+  1. On-device QA (no device here): long-press sheet gesture, snackbar undo timing on rapid taps, DatePicker on small screens, Save bar vs. IME/nav insets.
+- **Blocked on:** nothing.
+- **Handoff note:** Save on a *fresh, untouched* session deliberately writes the all-Present preset — the zero-tap common case must clear the Today nudge; do not "optimize" it away. `period` field untouched (no period picker, user decision). The absentee share covers ABSENT only — Late/Excused are not absentees.
+- **Last checkpoint:** 2026-10-21T00:27+05:30

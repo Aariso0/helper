@@ -7,6 +7,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.helper.attendance.ui.AttendanceScreen
 import com.example.helper.roster.ui.classlist.ClassListScreen
 import com.example.helper.roster.ui.studentlist.StudentListScreen
 import com.example.helper.roster.ui.studentpage.StudentPageScreen
@@ -18,9 +19,9 @@ import java.time.LocalDate
 /**
  * The route table + feature wiring (app-shell card). Every route string and
  * every argument parse lives in [Routes]; feature screens only ever receive
- * typed values. Modules not yet built (attendance, homework, parents,
- * export) sit behind honest placeholders until they hand their root
- * composable over (build protocol: message the app-shell owner).
+ * typed values. Modules not yet built (homework, parents, export) sit
+ * behind honest placeholders until they hand their root composable over
+ * (build protocol: message the app-shell owner).
  */
 @Composable
 fun AppNavHost(
@@ -116,7 +117,7 @@ fun AppNavHost(
             )
         }
 
-        // ── Not yet built: honest placeholders behind live routes ──────────
+        // ── Attendance (built) ─────────────────────────────────────────────
         composable(
             route = Routes.ATTENDANCE,
             arguments = listOf(
@@ -126,14 +127,17 @@ fun AppNavHost(
                     defaultValue = LocalDate.now().toEpochDay()
                 },
             ),
-        ) {
-            ModulePlaceholderScreen(
-                title = "Attendance",
-                moduleName = "attendance",
-                whatItWillDo = "Tap-absentees flow for the class-day, with live counters and a post-save share shortcut.",
-                onBack = { navController.popBackStack() },
+        ) { entry ->
+            val classId = entry.classId() ?: return@composable
+            val date = entry.dateEpochDay() ?: LocalDate.now().toEpochDay()
+            AttendanceScreen(
+                classId = classId,
+                dateEpochDay = date,
+                onDone = { navController.popBackStack() },
             )
         }
+
+        // ── Not yet built: honest placeholders behind live routes ──────────
         composable(Routes.EXPORT) {
             ModulePlaceholderScreen(
                 title = "Reports & backup",
