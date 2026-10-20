@@ -3,8 +3,8 @@ module: homework
 status: drafted   # planned · researching · drafted · needs-redo
 consumes: ["data-repositories", "share-helpers", "class-student-picker"]      # other module slugs / interfaces this module needs (use _shared/glossary.md terms)
 produces: ["homework-screen", "attachment-storage"]      # what this module exposes to others (use _shared/glossary.md terms)
-build: not-started   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
-last-updated: 2026-10-20
+build: built   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
+last-updated: 2026-10-21
 ---
 
 # Homework
@@ -76,12 +76,17 @@ The prototype's homework feature is judged by "share in under a minute including
 - No INTERNET permission, no MediaStore writes, no upload paths of any kind.
 
 ## Build progress
-{Left blank by the blueprint skill. Implementing agents fill and update this after every chunk of work.}
-- **Owner:** {agent / teammate name, or none}
+- **Owner:** opencode (lead + teammate)
 - **Coded:**
-  - {`path/to/file` — what is done in it}
+  - `homework/attachmentstore/AttachmentStore.kt` — `attachment-storage`: verbatim copy-on-pick into `<filesDir>/attachments/`, `capture_<millis>.jpg` targets for the camera, `kindFor`/`mimeFor`, `displayNameOf`, delete guarded to the attachments dir.
+  - `homework/viewmodel/HomeworkViewModel.kt` — `HomeworkListViewModel` (assignments grouped per class, due-soonest first with undated last, derived due labels, re-share payload) + `HomeworkEditViewModel` (draft commits as typed, row created lazily on class+title, attachment add/remove, `SharePayload`/`buildShareText`, `close()` deletes an unshared draft and its copied files), manual-DI composable providers.
+  - `homework/ui/HomeworkList.kt` — tab root `homework-screen`: per-class sections with tappable header → `onOpenClass`, row tap re-shares via the app-shell seam, extended FAB "New homework", empty state; hosts the edit takeover.
+  - `homework/ui/HomeworkEdit.kt` — class picker (roster's `ClassPicker`) → title → details → attachments → due date → bottom Share; SAF `OpenMultipleDocuments` + `PickVisualMedia`; M3 DatePicker with "No due date"; PDF open via `ACTION_VIEW` with a graceful snackbar; back/Share-fail keeps the draft, Share closes it.
+  - `homework/ui/AttachmentRow.kt` — Coil thumbnails (EXIF-aware), PDF/PPT/other badges, PDF-only open affordance, remove; honest "missing file" badge.
+  - `homework/ui/CameraShortcut.kt` — `rememberCameraCapture`: `TakePicture` on a FileProvider `content://` target, success → add, cancel → delete the target.
+  - `nav/AppNavHost.kt` — `Routes.HOMEWORK` placeholder replaced by `HomeworkScreen`; `onOpenClass` → `class/{classId}` student list.
 - **Remaining** (next first):
-  1. {next piece of work}
-- **Blocked on:** {nothing / what and who}
-- **Handoff note:** {what the next agent should know — where you stopped, any trap}
-- **Last checkpoint:** {ISO timestamp}
+  1. Nothing — module complete. (Open question from the card: PPT attaches/shares, no preview — implemented as decided.)
+- **Blocked on:** nothing.
+- **Handoff note:** Share shape is the agreed app-shell seam — `shareFiles(context, uris, mimeTypes, text, subject)` with a single `sharePayload()` helper in `HomeworkList.kt` serving both the list re-share and the compose Share; empty attachments fall back to `shareText`. `close()` (not `abandon()`) is the takeover exit: it blanks state so the singleton VM serves the next draft. List VM keys off `observeAll()` and drops sections whose class no longer exists. Draft row + attachments are committed as typed, so a shared assignment survives; only unshared drafts are deleted on exit.
+- **Last checkpoint:** 2026-10-21T01:05+05:30 — verification gate green (`compileDebugKotlin` + `assembleDebug` + `testDebugUnitTest`, zero warnings); committed after this checkpoint.

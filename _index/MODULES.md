@@ -7,7 +7,7 @@ Read this first when resuming. One line per module. Update the status the moment
 - [x] `app-shell` — nav, theme, Today home screen, share helpers — status: drafted — build: built
 - [x] `attendance` — tap-absentees screen, counters, edit past dates — status: drafted — build: built
 - [x] `student-feedback` — quick notes with editable preset tags — status: drafted — build: built
-- [x] `homework` — compose with attachments, share via share sheet — status: drafted — build: not-started
+- [x] `homework` — compose with attachments, share via share sheet — status: drafted — build: built
 - [x] `parents` — manual announcements + parent contact log — status: drafted — build: not-started
 - [x] `export-backup` — summaries, CSV/PDF export, manual backup/restore — status: drafted — build: not-started
 - [ ] `server-comms` — how the app talks to a server (transport, API, auth, sync) — status: planned — build: not-started — **v3 placeholder: do not research or build before v3** (card: `modules/server-comms.md`)

@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.helper.attendance.ui.AttendanceScreen
+import com.example.helper.homework.ui.HomeworkScreen
 import com.example.helper.roster.ui.classlist.ClassListScreen
 import com.example.helper.roster.ui.studentlist.StudentListScreen
 import com.example.helper.roster.ui.studentpage.StudentPageScreen
@@ -19,9 +20,9 @@ import java.time.LocalDate
 /**
  * The route table + feature wiring (app-shell card). Every route string and
  * every argument parse lives in [Routes]; feature screens only ever receive
- * typed values. Modules not yet built (homework, parents, export) sit
- * behind honest placeholders until they hand their root composable over
- * (build protocol: message the app-shell owner).
+ * typed values. Modules not yet built (parents, export) sit behind honest
+ * placeholders until they hand their root composable over (build protocol:
+ * message the app-shell owner).
  */
 @Composable
 fun AppNavHost(
@@ -52,10 +53,8 @@ fun AppNavHost(
             )
         }
         composable(Routes.HOMEWORK) {
-            ModulePlaceholderScreen(
-                title = "Homework",
-                moduleName = "homework",
-                whatItWillDo = "Compose an assignment for a class, attach photos or files, and share it through the system share sheet.",
+            HomeworkScreen(
+                onOpenClass = { classId -> navController.navigate(Routes.classStudents(classId)) },
             )
         }
         composable(Routes.PARENTS) {
