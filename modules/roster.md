@@ -3,7 +3,7 @@ module: roster
 status: drafted   # planned · researching · drafted · needs-redo
 consumes: ["data-repositories", "feedback-timeline"]      # other module slugs / interfaces this module needs (use _shared/glossary.md terms)
 produces: ["class-student-picker", "photo-storage", "roster-screens"]      # what this module exposes to others (use _shared/glossary.md terms)
-build: not-started   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
+build: built   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
 last-updated: 2026-10-20
 ---
 
@@ -80,12 +80,25 @@ Import is the module's riskiest decision, so it was decided against the client's
 - Copy picked photo bytes immediately after `PickVisualMedia` returns — URI grants are temporary; never store the content:// URI on the Student record.
 
 ## Build progress
-{Left blank by the blueprint skill. Implementing agents fill and update this after every chunk of work.}
-- **Owner:** {agent / teammate name, or none}
+- **Owner:** builder (single-agent build)
+- **Toolchain change (recorded, not a card deviation):** project Kotlin bumped 2.2.10 → 2.3.21. Required because kexcel-android 0.1.2 (card-pinned; every 0.x release) is compiled with Kotlin 2.4 — metadata 2.4.0, unreadable by the 2.2.10 compiler (it drags kotlin-stdlib 2.4.10 onto the classpath too). Kotlin 2.4 itself is out of reach: KSP 2.3.12 (required by Room) supports KGP 2.2.10–2.3.x only. Compilers read one metadata version ahead, so 2.3.21 reads kexcel's 2.4.0 metadata cleanly — verified green, no `-Xskip-metadata-version-check` suppression, no card pin touched (no card pins Kotlin).
 - **Coded:**
-  - {`path/to/file` — what is done in it}
+  - `viewmodel/ClassListViewModel.kt` — class list + per-class counts from two repository flows; create/rename/delete; deletes stored photo files before the FK cascade.
+  - `viewmodel/StudentListViewModel.kt` — per-class students + search (name/roll), roll-numeric-then-name sort, add/delete with photo cleanup.
+  - `viewmodel/StudentPageViewModel.kt` — profile (observeById ⋈ classes), attendance summary + recent history computed client-side from `observeForStudent`, photo import via PhotoStorage, edit/delete. `toDisplayDate()` top-level helper for history rows (roster-local; does not reach into student-feedback internals).
+  - `viewmodel/ImportViewModel.kt` — state machine IDLE→PARSING→MAPPING→COMMITTING→DONE; column auto-guess by header hints; dedup on commit (roll first, then name — preserves ids/photo paths on re-import, reports "(n updated)"); friendly typed errors; display-name resolution from the SAF URI.
+  - `viewmodel/PickerViewModel.kt` + `viewmodel/RosterViewModelProviders.kt` — one shared query-filtered VM for both pickers; manual-DI provider composables (same pattern as student-feedback) with per-surface keys (`roster-studentlist-<classId>`, `roster-studentpage-<studentId>`, `roster-import`, `roster-picker`).
+  - `photostorage/PhotoStorage.kt` — **the `photo-storage` convention for export-backup:** `<filesDir>/student_photos/`, files named `<studentId>_<epochMillis>.<ext>`, `Student.photoPath` holds the absolute path; copy-then-delete order so a failed read never destroys the existing photo; extension whitelist, jpg fallback.
+  - `picker/PickerDialog.kt`, `picker/ClassPicker.kt`, `picker/StudentPicker.kt` — `class-student-picker` seam: searchable dialogs that encapsulate their own data loading; consumers only wire `onPick`/`onDismiss` (+ optional preselected id). `StudentPicker(classId = null)` lists all students with class-name subtitles.
+  - `ui/import/ImportParsers.kt` — CSV via commons-csv (BOM strip + windows-1252 fallback on U+FFFD), XLSX via kexcel (`Excel.decodeBytes` → `getDefaultSheet()` → `rows`, `CellValue.toString()` source-verified as raw text incl. TextSpan); row-0 = header; blank rows dropped; 5 000-row cap; .xls gets the card's "save as .xlsx or CSV" message.
+  - `ui/import/ImportScreen.kt` — full-screen takeover: file pick (OpenDocument, mime list incl. octet-stream/zip mislabels) → parsing spinner → mapping form (target class dropdown or inline new-class field, three column dropdowns with auto-guess, first-5 preview, skipped-rows note) → pinned commit button "Import N students". Nothing touches the DB before commit.
+  - `ui/classlist/ClassListScreen.kt` — Students-tab root: counts, per-row Edit/Delete menu, delete confirm states cascade honestly, import takeover hosted here with result snackbar, loaded-state (no false "No classes yet" flash), empty state with both CTAs.
+  - `ui/studentlist/StudentListScreen.kt` — class name/subject header, search with no-results state, photo-or-initial avatar (`StudentAvatar` reused by the page), add-student dialog, loaded-state.
+  - `ui/studentpage/StudentPageScreen.kt` — photo (tap = PickVisualMedia, badge affordance, photo-error snackbar), details with dial-in call action, attendance hero % + breakdown + last-10 history (`HISTORY_LIMIT`, "showing last n of m" honesty line), edit dialog (incl. remove photo), delete confirm, `FeedbackTimeline` embed wired to `onQuickNote(studentId)`.
 - **Remaining** (next first):
-  1. {next piece of work}
-- **Blocked on:** {nothing / what and who}
-- **Handoff note:** {what the next agent should know — where you stopped, any trap}
-- **Last checkpoint:** {ISO timestamp}
+  1. `app-shell` wires the three roster routes + the quick-note route; on-device visual QA of every screen then (nothing rendered on a device yet — app-shell didn't exist during this build).
+  2. Phase 0: validate kexcel + the CSV decoder against the client's real file (card's standing check — swap-readers remains a user-level redo decision).
+  3. Attendance/homework/parents consume `ClassPicker`/`StudentPicker` — no roster changes expected unless a seam complaint surfaces.
+- **Blocked on:** nothing.
+- **Handoff note:** Screens are typed-param composables only (`onOpenClass`/`onOpenStudent`/`onDone`/`onQuickNote`) — navigation stays in app-shell. The import VM is keyed `roster-import` and resets itself on dismiss/done, so re-entering the takeover always starts clean. All three main screens expose an explicit `loaded` flag — never infer "deleted" or "empty" from the pre-first-emission initial state (the student page will otherwise pop itself on first frame). `ClassPicker`/`StudentPicker` encapsulate repositories — consumers must not add their own data plumbing for picking. Roll numbers sort numerically when parseable; import dedup matches roll first, then name.
+- **Last checkpoint:** 2026-10-20T23:50:00+05:30
