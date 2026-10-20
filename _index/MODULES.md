@@ -4,7 +4,7 @@ Read this first when resuming. One line per module. Update the status the moment
 
 - [x] `core-data` — one local data layer: Room, repositories, IDs/timestamps — status: drafted — build: built
 - [x] `roster` — classes, students, student page, Excel/CSV import — status: drafted — build: built
-- [x] `app-shell` — nav, theme, Today home screen, share helpers — status: drafted — build: not-started
+- [x] `app-shell` — nav, theme, Today home screen, share helpers — status: drafted — build: built
 - [x] `attendance` — tap-absentees screen, counters, edit past dates — status: drafted — build: not-started
 - [x] `student-feedback` — quick notes with editable preset tags — status: drafted — build: built
 - [x] `homework` — compose with attachments, share via share sheet — status: drafted — build: not-started

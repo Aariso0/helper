@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Paths the app's single FileProvider may serve (app-shell card setup step 2):
+  the three app-internal content stores the share sheet opens from —
+  roster's photo-storage, homework's attachment-storage, and the
+  parents/export PDF+export dir. Modules add nothing here without telling
+  the app-shell owner first (one provider, one path table).
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path name="student_photos" path="student_photos/" />
+    <files-path name="attachments" path="attachments/" />
+    <files-path name="exports" path="exports/" />
+</paths>

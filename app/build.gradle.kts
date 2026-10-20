@@ -63,6 +63,8 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // app-shell card Exact stack: string-route navigation, parsed only in nav/.
+    implementation(libs.androidx.navigation.compose)
     // roster card Exact stack: CSV/XLSX import + local-only photo loading.
     implementation(libs.commons.csv)
     implementation(libs.kexcel.android)

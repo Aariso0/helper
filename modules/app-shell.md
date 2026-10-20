@@ -3,8 +3,8 @@ module: app-shell
 status: drafted   # planned · researching · drafted · needs-redo
 consumes: ["data-repositories", "roster-screens", "attendance-screen", "feedback-screen", "quick-note-screen", "homework-screen", "parents-screen", "export-screen"]      # other module slugs / interfaces this module needs (use _shared/glossary.md terms)
 produces: ["share-helpers", "app-theme"]      # what this module exposes to others (use _shared/glossary.md terms)
-build: not-started   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
-last-updated: 2026-10-20
+build: built   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
+last-updated: 2026-10-21
 ---
 
 # App shell
@@ -75,12 +75,20 @@ The shell's job is to make every other module's seam obvious, so the navigation 
 - Desugaring flag must stay on once dates ship — removing it later would crash every `java.time` call on older devices.
 
 ## Build progress
-{Left blank by the blueprint skill. Implementing agents fill and update this after every chunk of work.}
-- **Owner:** {agent / teammate name, or none}
+- **Owner:** `opencode` (lead+teammate). DONE 2026-10-21T00:09+05:30.
 - **Coded:**
-  - {`path/to/file` — what is done in it}
+  - `gradle/libs.versions.toml` + `app/build.gradle.kts` — Compose BOM `2026.02.01` → **`2026.09.00`** (card pin), `navigation-compose 2.10.2` added; desugaring + lifecycle 2.11.0 already in place from earlier modules
+  - `theme/` — `Theme.kt` M3 theme (dynamic color on Android 12+, blue-seed fallback scheme), `Type.kt` type scale, `Dimens.kt` `ShellDimens` sizing tokens (64dp rows, 56dp primary action); the Android-Studio template `ui/theme/` was deleted and replaced
+  - `share/ShareHelpers.kt` — `shareText`, `shareFiles` (text + content URIs + mime types; ACTION_SEND_MULTIPLE + ClipData grants), `File.asShareableUri`; chooser always, `ActivityNotFoundException` → returns false for call-site snackbars
+  - `AndroidManifest.xml` + `res/xml/file_paths.xml` — the app's single `FileProvider` (`${applicationId}.fileprovider`), paths table covers `student_photos/`, `attachments/`, `exports/`
+  - `scaffold/AppScaffold.kt` — root Scaffold + NavigationBar, exactly the four tabs (Today · Students · Homework · Parents), bar hidden on nested routes; `contentWindowInsets` zeroed because every feature screen owns its own insets
+  - `nav/Routes.kt` — the full route table (4 tabs; `class/{classId}`, `student/{studentId}`, `student/{studentId}/quick-note`, `feedback?studentId=`, `attendance/{classId}?dateEpochDay=` defaulting to today, `export`), arg names + parsing, `navigateToTab`
+  - `nav/AppNavHost.kt` — NavHost wiring: roster (class list → student list → student page) and student-feedback (quick-note, feedback list with preset) wired now; attendance/homework/parents/export sit behind `nav/ModulePlaceholder.kt` honest "not built yet" screens (identified, never faked)
+  - `today/TodayViewModel.kt` — combines classes + `ClassDayCounts(today)` + all homework → `UiState` (loading/label/class rows/due-rows, most overdue first)
+  - `today/TodayScreen.kt` — date header; class rows with glanceable status ("Attendance not taken yet" nudge in tertiary, "Present X · Absent Y" with Absent in error); due-homework rows (hidden when none); "All feedback notes" link row → feedback list; ExtendedFAB "Give feedback" → roster `StudentPicker` → quick-note route; no-classes empty state → Students tab; bottom content padding clears the FAB
+  - `MainActivity.kt` — rewritten: `enableEdgeToEdge()` → `HelperTheme` → `AppScaffold` (template `Greeting` deleted)
 - **Remaining** (next first):
-  1. {next piece of work}
-- **Blocked on:** {nothing / what and who}
-- **Handoff note:** {what the next agent should know — where you stopped, any trap}
-- **Last checkpoint:** {ISO timestamp}
+  1. On-device QA pass (no device/emulator here): bottom-bar hide/show when entering/leaving nested routes, FAB vs. navigation-bar overlap on Today, StudentPicker → quick-note flow, dynamic color on 12+, RTL arrow mirroring.
+- **Blocked on:** nothing.
+- **Handoff note:** `res/xml/file_paths.xml` is the shared paths table — homework/parents/export must message the app-shell owner before adding a directory (one provider, one table, per the homework card's setup step 2). `Routes.EXPORT` is declared but has **no Today entry row yet**; the export-backup card says to agree that row with the app-shell owner — it goes in `today/TodayScreen.kt` as a `LinkRow` next to "All feedback notes". Kotlin stayed 2.3.21; no card pin touched.
+- **Last checkpoint:** 2026-10-21T00:09+05:30
