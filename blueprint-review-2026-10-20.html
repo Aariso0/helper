@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blueprint architecture review — Teacher Classroom App</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral', flowchart: { curve: 'basis' } });
+</script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, sans-serif; }
+  .mermaid { display: flex; justify-content: center; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+<!-- Header -->
+<header class="bg-slate-900 text-white px-8 py-10">
+  <div class="max-w-5xl mx-auto">
+    <p class="text-sm uppercase tracking-widest text-slate-400">readme-project · architecture review · cards only, no code</p>
+    <h1 class="text-3xl font-bold mt-2">Teacher Classroom App — blueprint review</h1>
+    <p class="text-slate-300 mt-3 max-w-3xl">8 modules, all <code class="bg-slate-700 px-1 rounded">drafted</code>. This report looks for a wrong cut: shallow modules, leaky seams, decision-risk spread across cards. Each candidate below states the friction, the blueprint change, and what the build gains. Nothing here touches implementation.</p>
+    <p class="text-sm text-slate-400 mt-3">2026-10-20 · generated from <code>modules/</code>, <code>_index/CONNECTIONS.md</code>, <code>_shared/</code></p>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-8 py-10 space-y-12">
+
+  <!-- Current graph -->
+  <section>
+    <h2 class="text-xl font-bold mb-1">The current cut</h2>
+    <p class="text-slate-600 mb-4">Every edge from the cards' frontmatter. The shape is healthy — one data layer, one composition root, no cycles — so the candidates target specific seams, not the overall structure.</p>
+    <div class="bg-white rounded-xl border p-4">
+      <pre class="mermaid">
+flowchart LR
+  CD[core-data<br/>data-repositories] --> R[roster]
+  CD --> AS[app-shell]
+  CD --> AT[attendance]
+  CD --> SF[student-feedback]
+  CD --> HW[homework]
+  CD --> PA[parents]
+  CD --> EB[export-backup]
+  SH[app-shell<br/>share-helpers · app-theme] --> AT
+  SH --> HW
+  SH --> PA
+  SH --> EB
+  R --> AS
+  AT --> AS
+  SF --> AS
+  SF -.feedback-timeline.-> R
+  HW --> AS
+  PA --> AS
+  EB --> AS
+  R -.class-student-picker.-> HW
+  R -.class-student-picker.-> PA
+  R -.photo-storage.-> EB
+  HW -.attachment-storage.-> EB
+      </pre>
+    </div>
+  </section>
+
+  <!-- Candidate A -->
+  <section class="bg-white rounded-2xl border-2 border-emerald-500 p-8">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-sm font-semibold text-emerald-600 uppercase tracking-wide">Candidate A</p>
+        <h2 class="text-2xl font-bold">Four storage directories, four owners, one leaked manifest entry</h2>
+      </div>
+      <span class="shrink-0 bg-emerald-100 text-emerald-800 text-sm font-bold px-3 py-1 rounded-full border border-emerald-300">Strong</span>
+    </div>
+    <p class="text-sm text-slate-500 mt-1">Modules involved: <b>app-shell</b> · <b>roster</b> · <b>homework</b> · <b>parents</b> · <b>export-backup</b></p>
+
+    <div class="grid md:grid-cols-2 gap-6 mt-6">
+      <div>
+        <h3 class="font-bold text-slate-900 mb-2">Problem</h3>
+        <p class="text-slate-700">Four modules write app-internal files, and the directory conventions live on three different cards — <b>photo-storage</b> (roster), <b>attachment-storage</b> (homework), parents' <code>pdfstore/</code> dir (<i>owned by nobody</i>). Meanwhile the single <code>FileProvider</code> entry sits in <b>app-shell</b>'s setup and must enumerate every module's directory: <em>"file_paths covering the photo, attachment, and export/PDF directories."</em></p>
+        <ul class="list-disc ml-5 mt-3 text-slate-700 space-y-1">
+          <li>app-shell's implementation hardcodes every storage module's internals — adding a fourth dir <b>ripples into app-shell</b>, and its setup step literally tells builders to "coordinate".</li>
+          <li>parents' PDF directory is referenced by app-shell's file_paths but documented on no card.</li>
+          <li>export-backup's backup zip must consume <b>two</b> storage conventions and know a third exists.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-2">Solution</h3>
+        <p class="text-slate-700">Promote storage to one interface: an <b><code>internal-storage</code></b> seam owned by <b>core-data</b> (which already owns "everything persisted" — IDs, timestamps, repositories). One root directory, one <code>file_paths</code> entry, subdirs handed to consumers by name. Feature modules consume <code>internal-storage</code> and name their subdir; export-backup's zip consumes one interface; app-shell's FileProvider setup references only the root.</p>
+        <h3 class="font-bold text-slate-900 mt-4 mb-2">Benefits</h3>
+        <ul class="list-disc ml-5 text-slate-700 space-y-1">
+          <li><b>Locality:</b> "where does data live" concentrates in one card.</li>
+          <li><b>Leverage:</b> five modules get path + FileProvider correctness from one interface.</li>
+          <li><b>Build verification:</b> no cross-owner chat for a manifest entry; backup verifies through one consumed interface.</li>
+          <li><b>Deletion test:</b> passes — core-data absorbs a real convention; complexity concentrates, doesn't move.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6 mt-6">
+      <div class="bg-slate-50 rounded-xl border p-4">
+        <p class="text-xs font-bold uppercase text-slate-500 mb-2">Before</p>
+        <pre class="mermaid">
+flowchart TB
+  subgraph owners ["convention owners"]
+    R["roster<br/>photo-storage"]
+    H["homework<br/>attachment-storage"]
+    P["parents<br/>pdfstore (unowned)"]
+  end
+  AS["app-shell<br/>FileProvider: must list ALL dirs"]
+  EB["export-backup<br/>consumes 2 conventions"]
+  R -->|coordination tax| AS
+  H -->|coordination tax| AS
+  P -->|silent leak| AS
+  R --> EB
+  H --> EB
+  P -.->|known only to app-shell| EB
+        </pre>
+      </div>
+      <div class="bg-slate-50 rounded-xl border p-4">
+        <p class="text-xs font-bold uppercase text-slate-500 mb-2">After</p>
+        <pre class="mermaid">
+flowchart TB
+  CD["core-data<br/>internal-storage: ONE root + file_paths"]
+  R["roster → subdir photos/"]
+  H["homework → subdir attachments/"]
+  P["parents → subdir announcement-pdfs/"]
+  AS["app-shell: FileProvider covers the root only"]
+  EB["export-backup: zip consumes one interface"]
+  CD --> R
+  CD --> H
+  CD --> P
+  CD --> AS
+  CD --> EB
+        </pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Candidate B -->
+  <section class="bg-white rounded-2xl border-2 border-amber-400 p-8">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-sm font-semibold text-amber-600 uppercase tracking-wide">Candidate B</p>
+        <h2 class="text-2xl font-bold">"Attendance %" is computed by everyone except attendance</h2>
+      </div>
+      <span class="shrink-0 bg-amber-100 text-amber-800 text-sm font-bold px-3 py-1 rounded-full border border-amber-300">Worth exploring</span>
+    </div>
+    <p class="text-sm text-slate-500 mt-1">Modules involved: <b>attendance</b> · <b>roster</b> · <b>export-backup</b></p>
+
+    <div class="grid md:grid-cols-2 gap-6 mt-6">
+      <div>
+        <h3 class="font-bold text-slate-900 mb-2">Problem</h3>
+        <p class="text-slate-700">The meaning of an attendance percentage is implemented <b>twice, by two modules that don't own attendance</b>: roster's student page renders a per-student %, and export-backup's <code>summarize/</code> computes monthly per-student/class figures. The <b>attendance</b> module — which defines statuses, Late/Excused, the optional period — computes neither.</p>
+        <p class="text-slate-700 mt-3">The README already flags the formula as a client question ("does Late count as present?"). When that answer lands, <b>three cards change instead of one</b>, and two implementations must be found and fixed in lockstep. That's decision-risk with no owner.</p>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-2">Solution</h3>
+        <p class="text-slate-700">Deepen <b>attendance</b> to also produce <b><code>attendance-summaries</code></b> — pure aggregation over <code>data-repositories</code> for a (student | class, date range). roster's student page and export-backup's writers both become <b>renderers of one model</b>; export-backup drops its <code>summarize/</code> folder.</p>
+        <h3 class="font-bold text-slate-900 mt-4 mb-2">Benefits</h3>
+        <ul class="list-disc ml-5 text-slate-700 space-y-1">
+          <li><b>One formula, one test surface</b> — a client answer is a one-card redo.</li>
+          <li>roster stops knowing attendance math; export-backup shrinks toward its interface (formats + SAF).</li>
+          <li>Consumers verify through <code>Connections</code> alone: counts in, percentages out.</li>
+        </ul>
+        <p class="text-xs text-slate-500 mt-2">Honest cost: the duplication today is two small functions — this buys locality of a decision the README itself marks UNKNOWN.</p>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6 mt-6">
+      <div class="bg-slate-50 rounded-xl border p-4">
+        <p class="text-xs font-bold uppercase text-slate-500 mb-2">Before — the formula has no home</p>
+        <pre class="mermaid">
+flowchart TB
+  CD[core-data<br/>AttendanceRecord rows]
+  AT[attendance<br/>owns statuses — computes no %]
+  R["roster<br/>student page: % formula #1"]
+  EB["export-backup<br/>summarize/: % formula #2"]
+  CD --> AT
+  CD --> R
+  CD --> EB
+  R <-.->|"Late counts as present?<br/>answer ripples across BOTH"| EB
+        </pre>
+      </div>
+      <div class="bg-slate-50 rounded-xl border p-4">
+        <p class="text-xs font-bold uppercase text-slate-500 mb-2">After — one owner</p>
+        <pre class="mermaid">
+flowchart TB
+  CD[core-data<br/>AttendanceRecord rows]
+  AT["attendance<br/>+ attendance-summaries: THE formula"]
+  R["roster: renders the model"]
+  EB["export-backup: writes the model to CSV/Excel/PDF"]
+  CD --> AT
+  AT --> R
+  AT --> EB
+        </pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Candidate C -->
+  <section class="bg-white rounded-2xl border-2 border-amber-400 p-8">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-sm font-semibold text-amber-600 uppercase tracking-wide">Candidate C</p>
+        <h2 class="text-2xl font-bold">PdfDocument page layout would be written twice</h2>
+      </div>
+      <span class="shrink-0 bg-amber-100 text-amber-800 text-sm font-bold px-3 py-1 rounded-full border border-amber-300">Worth exploring</span>
+    </div>
+    <p class="text-sm text-slate-500 mt-1">Modules involved: <b>parents</b> · <b>export-backup</b></p>
+
+    <div class="grid md:grid-cols-2 gap-6 mt-6">
+      <div>
+        <h3 class="font-bold text-slate-900 mb-2">Problem</h3>
+        <p class="text-slate-700">Both cards independently implement framework <code>PdfDocument</code> layout: parents renders announcement paragraphs with <code>StaticLayout</code>, export-backup's <code>writers/</code> renders summary pages the same way. Pagination — flowing text across A4 pages, headers/footers, "does this paragraph fit" — is the nontrivial half, and it would exist twice, drifting (parents gets a pagination fix export-backup never hears about).</p>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-2">Solution</h3>
+        <p class="text-slate-700">One deep seam: a <b><code>pdf-layout</code></b> helper (blocks of text/table in → paged <code>PdfDocument</code> out) owned by one module, consumed by both. <i>Where</i> it lives is a grill question — beside <code>internal-storage</code> in core-data (candidate A), or app-shell's file-output side.</p>
+        <h3 class="font-bold text-slate-900 mt-4 mb-2">Benefits</h3>
+        <ul class="list-disc ml-5 text-slate-700 space-y-1">
+          <li>Pagination fixed once; both PDFs inherit fixes.</li>
+          <li>Small, verifiable interface: content blocks in, paged PDF out.</li>
+          <li>If A has landed, this slots next to <code>internal-storage</code> naturally — one "file output" owner.</li>
+        </ul>
+        <p class="text-xs text-slate-500 mt-2">Prototype may honestly survive duplication — rate it against how fancy the PDFs need to be at Phase 0.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Candidate D -->
+  <section class="bg-white rounded-2xl border-2 border-slate-300 p-8">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Candidate D</p>
+        <h2 class="text-2xl font-bold">export-backup does two jobs</h2>
+      </div>
+      <span class="shrink-0 bg-slate-100 text-slate-700 text-sm font-bold px-3 py-1 rounded-full border border-slate-300">Speculative</span>
+    </div>
+    <p class="text-sm text-slate-500 mt-1">Modules involved: <b>export-backup</b> (split)</p>
+
+    <div class="grid md:grid-cols-2 gap-6 mt-6">
+      <div>
+        <h3 class="font-bold text-slate-900 mb-2">Problem</h3>
+        <p class="text-slate-700">Reporting (summaries → CSV/Excel/PDF for the client) and device backup (checkpoint hook, zip, validated restore) share one card but share nothing else: different consumers, different risk profiles — <b>restore is the app's only destructive operation</b>. Backup churn (WAL handling, marker format) edits a card whose other half is about classroom reports.</p>
+      </div>
+      <div>
+        <h3 class="font-bold text-slate-900 mb-2">Solution &amp; honest cost</h3>
+        <p class="text-slate-700">Split into <b>reports</b> (screen, writers, SAF export) and <b>backup</b> (archive, restore, checkpoint seam) — the destructive capability gets its own explicit card and build verification.</p>
+        <p class="text-slate-700 mt-3">Cost: two cards, two screen sections wired separately, SAF/ViewModel boilerplate duplicated. And <b>if candidate A lands</b>, backup's storage dependency collapses to one consumed interface — shrinking this split's value further.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Top recommendation -->
+  <section class="bg-slate-900 text-white rounded-2xl p-8">
+    <h2 class="text-2xl font-bold mb-3">Top recommendation</h2>
+    <p class="text-slate-200"><b class="text-emerald-400">Candidate A first.</b> It's the only <i>Strong</i> finding: the leak is already visible in four cards' setup steps and build notes ("coordinate with the app-shell owner"), it strands one undocumented directory, and it makes the backup module consume two interfaces where one would do. Fixing it removes a coordination tax from the entire build before any code exists.</p>
+    <p class="text-slate-200 mt-3"><b class="text-amber-400">Then B</b> — small, and it pins down a decision the README itself flags as unknown, before two implementations fork on it. <b>C</b> is worth 15 minutes of grill once A's owner is known; <b>D</b> only if, after A, backup still feels crowded on its card.</p>
+  </section>
+
+  <p class="text-center text-slate-500 text-sm pb-8">Which of these would you like to explore? (Answer with A / B / C / D, or any combination.)</p>
+</main>
+
+</body>
+</html>
