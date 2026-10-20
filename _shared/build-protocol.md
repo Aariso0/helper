@@ -12,7 +12,7 @@ The blueprint folders (`modules/`, `_index/`, `_shared/`, `_templates/`) stay **
 ## Starting (lead)
 
 1. Read `CLAUDE.md` → `_index/MODULES.md` → `_index/CONNECTIONS.md`.
-2. `mkdir -p .my_folder/grp_chat`
+2. `mkdir -p chat/grp_chat`e Group cha
 3. Pick modules with `status: drafted` and `build` not yet `built`. Producers before consumers (a module that consumes nothing goes first). Keep the team small — each teammate is a full session and costs tokens.
 4. Spawn one teammate per module. Each is told: its module slug, "read `_shared/build-protocol.md` and `modules/<slug>.md`", and the names of the teammates whose modules it consumes from or produces for.
 5. Log a `TEAM-START` line (see Group chat).
@@ -31,7 +31,7 @@ The blueprint folders (`modules/`, `_index/`, `_shared/`, `_templates/`) stay **
 
 ## Group chat log
 
-- Folder: `.my_folder/grp_chat/` — one file per day, `YYYY-MM-DD.md`, append-only.
+- Folder: `chat/grp_chat/` — one file per day, `YYYY-MM-DD.md`, append-only.
 - One line per entry, newest at the bottom:
 
 ```
@@ -43,14 +43,14 @@ The blueprint folders (`modules/`, `_index/`, `_shared/`, `_templates/`) stay **
 
 - Get the timestamp from the shell, never from memory: `date -Iseconds`.
 - Append with one command per entry so lines don't interleave:
-  `echo "[$(date -Iseconds)] <from> → <to>: <message>" >> ".my_folder/grp_chat/$(date +%F).md"`
+  `echo "[$(date -Iseconds)] <from> → <to>: <message>" >> "chat/grp_chat/$(date +%F).md"`
 - Never rewrite or delete earlier lines.
 - Log: every message you send to a teammate or the lead, every decision about an interface, and the markers `TEAM-START`, `CLAIM`, `CHECKPOINT`, `BLOCKED`, `DONE`, `HANDOFF` (as `SYSTEM <slug>: <marker> <short note>`).
 
 ## Resuming (any new agent, any session)
 
 1. `CLAUDE.md` → `_index/MODULES.md` (blueprint `status` and `build` per module) → `_index/CONNECTIONS.md`.
-2. Tail the latest file in `.my_folder/grp_chat/` (last ~50 lines) for what was just discussed.
+2. Tail the latest file in `chat/grp_chat/` (last ~50 lines) for what was just discussed.
 3. Open only the card you're taking over and read its `Build progress` — `Coded`, `Remaining`, `Handoff note`. Trust it; don't re-derive it by re-reading all the code.
 4. If a card's `build:` and `MODULES.md` disagree, the card wins; fix `MODULES.md`.
 5. Claim the module (Teammate loop step 2) and continue from the first `Remaining` item.
@@ -60,7 +60,7 @@ The blueprint folders (`modules/`, `_index/`, `_shared/`, `_templates/`) stay **
 ```
 Create an agent team to build this project from its blueprint.
 Read CLAUDE.md and _shared/build-protocol.md first, and follow them exactly.
-Lead: create .my_folder/grp_chat/, then spawn one teammate per drafted module,
+Lead: create chat/grp_chat/, then spawn one teammate per drafted module,
 starting with modules that consume nothing. Each teammate owns one module,
 talks directly to the teammates it connects with, logs every message to the
 group chat, and checkpoints into its card's Build progress after every chunk.
