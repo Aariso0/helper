@@ -12,7 +12,7 @@ The blueprint folders (`modules/`, `_index/`, `_shared/`, `_templates/`) stay **
 ## Starting (lead)
 
 1. Read `CLAUDE.md` → `_index/MODULES.md` → `_index/CONNECTIONS.md`.
-2. `mkdir -p chat/grp_chat`e Group cha
+2. `mkdir -p chat/grp_chat` — the group chat log's home.
 3. Pick modules with `status: drafted` and `build` not yet `built`. Producers before consumers (a module that consumes nothing goes first). Keep the team small — each teammate is a full session and costs tokens.
 4. Spawn one teammate per module. Each is told: its module slug, "read `_shared/build-protocol.md` and `modules/<slug>.md`", and the names of the teammates whose modules it consumes from or produces for.
 5. Log a `TEAM-START` line (see Group chat).
@@ -27,6 +27,8 @@ The blueprint folders (`modules/`, `_index/`, `_shared/`, `_templates/`) stay **
 6. **Never edit another module's card.** Ask its owner. If an interface changes, the owner updates their own `Connections` and `consumes` / `produces`, then tells the lead.
 7. **Never deviate from `Exact stack`** (different library, version, or approach). Stop, add an `Open questions` line, message the lead, log `BLOCKED`. The user decides; a stack change is a redo through the blueprint skill, not a quiet patch.
 8. **Done:** `Remaining` empty, everything in `File & folder layout` coded, set `build: built`, log `DONE`.
+   - **The gate:** `./gradlew :app:compileDebugKotlin :app:assembleDebug :app:testDebugUnitTest --console=plain` must be green with **zero warnings**. Warnings are defects — fix them, never suppress them (`@Suppress`, blanket `@OptIn`, `-nowarn`).
+   - Then the bookkeeping sweep: card (`build:` + `Build progress`) → `_index/MODULES.md` → `DONE` line in `chat/grp_chat/` → `chat/CURRENT.md` + a journal entry → commit only your module's files. `.idea/` is never committed.
 9. **Running low on tokens or context:** finish the current chunk, write the checkpoint and a `Handoff note` (what you were about to do, any trap you found), log `HANDOFF`, stop. Do not start a new chunk you can't checkpoint.
 
 ## Group chat log
