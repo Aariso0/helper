@@ -1,5 +1,13 @@
 package com.example.helper.scaffold
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -15,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.compose.NavHost
@@ -22,6 +31,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.helper.nav.AppNavHost
 import com.example.helper.nav.Routes
 import com.example.helper.nav.navigateToTab
+import com.example.helper.theme.Motion
 
 /** Exactly the four README tabs — no settings, no profile, no extras (rule 3). */
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -48,7 +58,18 @@ fun AppScaffold() {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            if (Routes.isTabRoot(currentRoute)) {
+            // The bar belongs to tab roots only; on detail screens it slides
+            // down and shrinks away (anchored to the screen bottom) so the
+            // content padding animates with it — no hard cut, no layout jump.
+            AnimatedVisibility(
+                visible = Routes.isTabRoot(currentRoute),
+                enter = slideInVertically(tween(Motion.Duration.Medium, easing = Motion.Easing.Decelerate)) { it } +
+                    expandVertically(tween(Motion.Duration.Medium, easing = Motion.Easing.Decelerate), expandFrom = Alignment.Bottom) +
+                    fadeIn(tween(Motion.Duration.Medium, easing = Motion.Easing.Decelerate)),
+                exit = slideOutVertically(tween(Motion.Duration.Medium, easing = Motion.Easing.Accelerate)) { it } +
+                    shrinkVertically(tween(Motion.Duration.Medium, easing = Motion.Easing.Accelerate), shrinkTowards = Alignment.Bottom) +
+                    fadeOut(tween(Motion.Duration.Short, easing = Motion.Easing.Accelerate)),
+            ) {
                 NavigationBar {
                     tabs.forEach { tab ->
                         NavigationBarItem(
