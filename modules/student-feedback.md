@@ -78,13 +78,14 @@ The screen exists to hit the README's <10s-with-a-preset-tag target, so the inte
   - `ui/TagChips.kt` — `TagChipRow`: FlowRow of FilterChips + "Add" AssistChip; long-press (wrapper `combinedClickable`, chip's own onClick owns taps — no double-fire) opens rename/delete dialog; add dialog for "+".
   - `ui/QuickNoteScreen.kt` — commit-on-tap surface: editable chip row where tap = commit (with typed one-liner), Undo snackbar deletes through the same path; single-line input anchored in scrollable content; typed params `(studentId, onDone)`.
   - `ui/FeedbackScreen.kt` — searchable list: query over student name/tag/text, tag chips single-select, date FilterChips (All time/Today/This week/This month), date-grouped rows, empty states; typed params `(onDone, studentIdPreset?)`.
-  - `ui/FeedbackTimeline.kt` — read-only chronological embed for roster's student page; "Quick note" FilledTonalButton emits `onQuickNote`, never navigates; takes latest 20 notes.
+  - `ui/FeedbackTimeline.kt` — read-only chronological embed for roster's student page; "Quick note" FilledTonalButton emits `onQuickNote`, never navigates; takes latest 20 notes. **Crash fix 2026-10-21:** removed the notes branch's inner `verticalScroll` — the host page scrolls, so the nested scrollable was measured with infinite height and threw at measure time whenever notes existed (see `chat/journal/21-10-2026.md`); do not re-add it.
   - `ui/DateText.kt` — `epochDayToDisplayDate()` (Today/Yesterday/`d MMM yyyy`) over desugared `LocalDate`.
   - `seed/SeedTags.kt` — placeholder tag set (per card: replaceable in place, Phase 0 swaps real vocabulary).
   - Gradle: `material-icons-core` added (material3 no longer pulls it transitively); lifecycle `runtime-compose`/`viewmodel-compose` 2.11.0 wired (artifact id is `lifecycle-runtime-compose`, not `runtime-compose` — fixed after first failed resolve).
 - **Remaining** (next first):
   1. On-device QA of long-press-to-edit on chips (wrapper `combinedClickable` around the chip's tap-owning clickable — compiled and reviewed, but gesture behavior not yet verified on a real device).
   2. `roster` consumes `feedback-timeline`; `app-shell` wires the three routes — no code changes expected here unless a seam mismatch shows up.
+  3. On-device QA of the 2026-10-21 crash fix: open a student with ≥1 feedback note — must render inline (capped at 20) instead of crashing; gate was green here but no device was attached to this session.
 - **Blocked on:** nothing.
 - **Handoff note:** One `FeedbackViewModel` class serves three surfaces — always construct via `feedbackViewModel(key = ..., studentIdPreset = ...)` with distinct keys or instances collide. Notes store `dateEpochDay` (epoch-day Long); screens format with `epochDayToDisplayDate()`. Commit-on-tap must stay one tap (design rule 1) — don't add a Save button. `FeedbackScreen` is read-only by design; capture only on `QuickNoteScreen`.
-- **Last checkpoint:** 2026-10-20T22:45:00+05:30
+- **Last checkpoint:** 2026-10-21T13:04:39+05:30

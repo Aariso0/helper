@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FilledTonalButton
@@ -64,10 +62,11 @@ fun FeedbackTimeline(
                 modifier = Modifier.padding(vertical = 8.dp),
             )
         } else {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            // Deliberately no inner verticalScroll: the host student page already
+            // scrolls, and a nested scrollable is measured with infinite height,
+            // which throws at measure time whenever notes exist — see
+            // chat/journal/21-10-2026.md ("timeline nested-scroll crash").
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 notes.forEach { note ->
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
