@@ -43,6 +43,10 @@ interface AttendanceDao {
     @Query("SELECT * FROM attendance_records WHERE classId = :classId AND dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay")
     suspend fun getForClassInRange(classId: String, fromEpochDay: Long, toEpochDay: Long): List<AttendanceRecord>
 
+    /** Every row — the export-backup full table dump (no schema change). */
+    @Query("SELECT * FROM attendance_records")
+    suspend fun getAll(): List<AttendanceRecord>
+
     @Query("SELECT COUNT(*) > 0 FROM attendance_records WHERE classId = :classId AND dateEpochDay = :dateEpochDay")
     suspend fun isTaken(classId: String, dateEpochDay: Long): Boolean
 

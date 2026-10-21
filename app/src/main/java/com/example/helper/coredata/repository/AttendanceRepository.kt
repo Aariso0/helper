@@ -36,6 +36,9 @@ class AttendanceRepository(private val dao: AttendanceDao) {
     suspend fun getForClassInRange(classId: String, fromEpochDay: Long, toEpochDay: Long): List<AttendanceRecord> =
         dao.getForClassInRange(classId, fromEpochDay, toEpochDay)
 
+    /** Every row — the export-backup full table dump. */
+    suspend fun getAll(): List<AttendanceRecord> = dao.getAll()
+
     /** "Was attendance taken for this class-day?" — Today screen nudge. */
     suspend fun isTaken(classId: String, dateEpochDay: Long): Boolean =
         dao.isTaken(classId, dateEpochDay)

@@ -9,7 +9,7 @@ Read this first when resuming. One line per module. Update the status the moment
 - [x] `student-feedback` — quick notes with editable preset tags — status: drafted — build: built
 - [x] `homework` — compose with attachments, share via share sheet — status: drafted — build: built
 - [x] `parents` — manual announcements + parent contact log — status: drafted — build: built
-- [x] `export-backup` — summaries, CSV/PDF export, manual backup/restore — status: drafted — build: not-started
+- [x] `export-backup` — summaries, CSV/PDF export, manual backup/restore — status: drafted — build: built
 - [ ] `server-comms` — how the app talks to a server (transport, API, auth, sync) — status: planned — build: not-started — **v3 placeholder: do not research or build before v3** (card: `modules/server-comms.md`)
 
 Draft order (foundational first): `core-data` → `student-feedback` → `roster` → `app-shell` → `attendance` → `homework` → `parents` → `export-backup`. `server-comms` is outside every v0–v2 pass; it enters the order only when the user opens the v3 server phase.

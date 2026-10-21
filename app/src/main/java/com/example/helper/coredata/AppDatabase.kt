@@ -43,7 +43,7 @@ import com.example.helper.coredata.migration.Migrations
         Homework::class,
         Attachment::class,
     ],
-    version = 1,
+    version = AppDatabase.SCHEMA_VERSION,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -57,6 +57,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun homeworkDao(): HomeworkDao
 
     companion object {
+        /** Name of the single Room database file (export-backup copies it). */
+        const val DATABASE_NAME = "helper.db"
+
+        /** Schema version — @Database reads this; backup manifests record it. */
+        const val SCHEMA_VERSION = 1
+
         @Volatile
         private var instance: AppDatabase? = null
 
@@ -65,11 +71,34 @@ abstract class AppDatabase : RoomDatabase() {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "helper.db",
+                    DATABASE_NAME,
                 )
                     .addMigrations(*Migrations.ALL)
                     .build()
                     .also { instance = it }
             }
+
+        /**
+         * `export-backup` seam (card setup step 2): flush the write-ahead log
+         * so the `.db` file alone is a complete snapshot. Called before the
+         * file is copied into a backup zip; copying a hot WAL produces a
+         * corrupt restore (card build note).
+         */
+        suspend fun checkpoint() {
+            val database = instance ?: return
+            database.query("PRAGMA wal_checkpoint(FULL)", null).use { it.moveToFirst() }
+        }
+
+        /**
+         * `export-backup` seam: close and forget the singleton so the DB file
+         * can be replaced. The app restarts afterwards — every repository the
+         * ViewModels hold belongs to this now-closed instance.
+         */
+        fun closeForRestore() {
+            synchronized(this) {
+                instance?.close()
+                instance = null
+            }
+        }
     }
 }

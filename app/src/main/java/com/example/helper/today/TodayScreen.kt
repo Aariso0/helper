@@ -53,6 +53,7 @@ fun TodayScreen(
     onOpenAttendance: (classId: String, dateEpochDay: Long) -> Unit,
     onQuickNote: (studentId: String) -> Unit,
     onOpenFeedback: () -> Unit,
+    onOpenExport: () -> Unit,
     onGoToStudents: () -> Unit,
 ) {
     val viewModel = todayViewModel()
@@ -142,6 +143,15 @@ fun TodayScreen(
                     title = "All feedback notes",
                     subtitle = "Search by student, tag or date",
                     onClick = onOpenFeedback,
+                )
+            }
+
+            item { SectionHeader("Reports") }
+            item {
+                LinkRow(
+                    title = "Reports & backup",
+                    subtitle = "Monthly attendance exports and the one-file backup",
+                    onClick = onOpenExport,
                 )
             }
         }

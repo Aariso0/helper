@@ -3,8 +3,8 @@ module: export-backup
 status: drafted   # planned · researching · drafted · needs-redo
 consumes: ["data-repositories", "class-student-picker", "share-helpers", "photo-storage", "attachment-storage"]      # other module slugs / interfaces this module needs (use _shared/glossary.md terms)
 produces: ["export-screen"]      # what this module exposes to others (use _shared/glossary.md terms)
-build: not-started   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
-last-updated: 2026-10-20
+build: built   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
+last-updated: 2026-10-21
 ---
 
 # Export & backup
@@ -82,12 +82,26 @@ This module *is* the README's "never feels locked in" promise (line 49) and the 
 - Deleting or re-exporting never touches database rows: this module reads data and writes files, and must stay incapable of changing what it reports on (restore is the sole, explicitly-confirmed exception).
 
 ## Build progress
-{Left blank by the blueprint skill. Implementing agents fill and update this after every chunk of work.}
-- **Owner:** {agent / teammate name, or none}
+- **Owner:** opencode (lead + builder) — claimed 2026-10-21, done 2026-10-21.
 - **Coded:**
-  - {`path/to/file` — what is done in it}
-- **Remaining** (next first):
-  1. {next piece of work}
-- **Blocked on:** {nothing / what and who}
-- **Handoff note:** {what the next agent should know — where you stopped, any trap}
-- **Last checkpoint:** {ISO timestamp}
+  - `coredata/AppDatabase.kt`, `AppContainer.kt`, `dao/AttendanceDao.kt`, `repository/AttendanceRepository.kt` — the agreed `data-repositories` seam: `checkpoint()` (`PRAGMA wal_checkpoint(FULL)`), `databaseFile()`, `closeForRestore()` (closes + forgets the singleton), `SCHEMA_VERSION` const (the `@Database` version reads it) and one `getAll()` attendance query for the full table dump. No schema change.
+  - `summarize/MonthlySummary.kt` — one summary model (student → class → grand totals, distinct tracked days, nullable percentage = "no records", never 0%) + the pure `buildMonthlySummary(...)`; `PERCENTAGE_RULE` states Late-counts-as-present in every file header.
+  - `writers/SummaryCsvWriter.kt` — commons-csv (the roster parser, now writing), comment header + per-class totals + grand total.
+  - `writers/SummaryExcelWriter.kt` — real `.xlsx` via `kexcel-android` (`Excel.createExcel`, `appendRow`, `setColumnWidth`, `rename` to "Attendance", `encode`); same rows/columns as CSV.
+  - `writers/SummaryPdfWriter.kt` — framework `PdfDocument` + `StaticLayout`; monospaced aligned table per class, per-class + grand totals, pagination with repeated class header and page-number footer.
+  - `backupio/BackupManifest.kt` — `manifest.json` via platform `JSONObject` (no serialization dependency): marker, format version, app id, schema version, created-at, per-table counts, file count.
+  - `backupio/BackupWriter.kt` — reads every repository row, checkpoints, then one zip: manifest + `database/helper.db` + `files/student_photos/**` + `files/attachments/**` + `csv/<table>.csv` for all 10 tables (the user's "any data entered must be exportable" requirement; the CSVs are readable outside the app, the DB is the restore payload).
+  - `backupio/BackupRestorer.kt` — inspect (manifest-only, nothing touched) then restore: extract to `cacheDir/restore_staging` (zip-slip + size guards), re-validate marker/app id/schema, close DB, move current DB+WAL+SHM+both file stores into `restore_previous`, swap staged data in, rollback on any failure, delete the rollback copy on success.
+  - `backupio/AppRestart.kt` — launch intent + short delay + `exitProcess`; needed because a file-level restore invalidates every repository.
+  - `viewmodel/ExportViewModel.kt` — month (defaults to last full month, future capped) × class scope, summary reload, export/backup/inspect/restore state machine, SAF file-name suggestions, `NonCancellable` restore.
+  - `ui/ExportScreen.kt`, `ui/SummaryCards.kt`, `ui/BackupSection.kt` — month stepper + "Show this month" + class picker; overall/class/student cards; three export buttons (one `CreateDocument` launcher per MIME); backup + restore with a preview dialog naming counts and the destructive warning; post-restore takeover (back blocked, auto-restart on success, manual restart on failure).
+  - `today/TodayScreen.kt` — `LinkRow` "Reports & backup" under a new "Reports" section; `nav/AppNavHost.kt` — placeholder replaced by `ExportScreen`.
+  - `app/src/test/java/com/example/helper/exportbackup/MonthlySummaryTest.kt` — 7 tests: late-as-present, untracked null %, class distinct-day totals, grand totals, class filter, roll-number ordering, empty month.
+- **Remaining:** none. Optional card item not taken: the `share-helpers` "share this export" action (card says optional; SAF already lets the teacher pick any destination/server).
+- **Blocked on:** nothing
+- **Handoff note:**
+  - Restore is deliberately **file-level + process restart** (card shape): it closes the DB, swaps files under a rollback copy, then the outcome screen restarts the app. Do not "optimise" this into an in-process reopen — every ViewModel holds repositories bound to the closed instance.
+  - `files/student_photos/**` and `files/attachments/**` are the backup's file payload; `exports/` (announcement PDFs) is deliberately **not** backed up — it is derivable, and this module now owns sweeping it if that is ever needed.
+  - Traps found: `kexcel`'s `TextCellValue` primary constructor takes a `TextSpan` (use the `String` secondary constructor; a `::TextCellValue` reference is ambiguous for `appendRow(List<CellValue?>)`); on this compile SDK `Typeface.SANS_SERIF` is a `Typeface`, not a `String` — use `Typeface.create("sans-serif", style)`; commons-csv `Builder.build()` is deprecated, `.get()` is the warning-free call.
+  - Traps proven again: `SchoolClass`/`Student` need `createdAt`/`updatedAt`; `Modifier.padding(start, end, vertical)` invalid; `StaticLayout.Builder.setIncludeFontPadding` absent; compile-only passes hide runtime mistakes.
+- **Last checkpoint:** 2026-10-21 — built; gate green with zero warnings (`:app:compileDebugKotlin :app:assembleDebug :app:testDebugUnitTest`, 7 new unit tests passing).

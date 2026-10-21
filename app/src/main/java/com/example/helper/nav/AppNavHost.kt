@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.helper.attendance.ui.AttendanceScreen
+import com.example.helper.exportbackup.ui.ExportScreen
 import com.example.helper.homework.ui.HomeworkScreen
 import com.example.helper.roster.ui.classlist.ClassListScreen
 import com.example.helper.roster.ui.studentlist.StudentListScreen
@@ -45,6 +46,7 @@ fun AppNavHost(
                     navController.navigate(Routes.quickNote(studentId))
                 },
                 onOpenFeedback = { navController.navigate(Routes.feedback()) },
+                onOpenExport = { navController.navigate(Routes.EXPORT) },
                 onGoToStudents = { navController.navigateToTab(Routes.STUDENTS) },
             )
         }
@@ -135,12 +137,7 @@ fun AppNavHost(
 
         // ── Not yet built: honest placeholders behind live routes ──────────
         composable(Routes.EXPORT) {
-            ModulePlaceholderScreen(
-                title = "Reports & backup",
-                moduleName = "export-backup",
-                whatItWillDo = "Monthly summaries, CSV/Excel/PDF export, and the manual backup/restore zip.",
-                onBack = { navController.popBackStack() },
-            )
+            ExportScreen(onBack = { navController.popBackStack() })
         }
     }
 }
