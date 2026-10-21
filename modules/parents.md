@@ -3,8 +3,8 @@ module: parents
 status: drafted   # planned · researching · drafted · needs-redo
 consumes: ["data-repositories", "class-student-picker", "share-helpers"]      # other module slugs / interfaces this module needs (use _shared/glossary.md terms)
 produces: ["parents-screen"]      # what this module exposes to others (use _shared/glossary.md terms)
-build: not-started   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
-last-updated: 2026-10-20
+build: built   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
+last-updated: 2026-10-21
 ---
 
 # Parents
@@ -77,12 +77,16 @@ Every delivery path in this module is manual by design because parent access its
 - Deleting a template must not touch past `Announcement` rows, and deleting an announcement must not touch its templates.
 
 ## Build progress
-{Left blank by the blueprint skill. Implementing agents fill and update this after every chunk of work.}
-- **Owner:** {agent / teammate name, or none}
+- **Owner:** opencode (lead + builder) — DONE 2026-10-21.
 - **Coded:**
-  - {`path/to/file` — what is done in it}
-- **Remaining** (next first):
-  1. {next piece of work}
-- **Blocked on:** {nothing / what and who}
-- **Handoff note:** {what the next agent should know — where you stopped, any trap}
-- **Last checkpoint:** {ISO timestamp}
+  - `parents/pdfstore/AnnouncementPdfStore.kt` — `PdfDocument` A4 renderer; `StaticLayout` wrapping (complex-script safe), line-band pagination for multi-page bodies, title/context/divider header on page 1; writes `<filesDir>/exports/announcement_<millis>.pdf` (already in `file_paths.xml` — no seam change needed)
+  - `parents/viewmodel/ParentsViewModel.kt` — `ParentsViewModel` (tab: announcements + contact log observed off repositories, recent-first, precomputed date labels, add/delete entry, delete announcement) + `AnnouncementEditViewModel` (homework-style commit-as-typed Announcement row, discard-on-abandon-unless-shared, template apply/save-as/update/delete with `markTemplateUsed`, PDF render on IO → `Event.SharePdf`) + manual-DI providers (`parents-tab`, `parents-announcement-edit`)
+  - `parents/ui/ParentsScreen.kt` — tab root (`parents-screen`): announcements section (tap row = re-share text; MoreVert → delete-with-confirm) + contact-log section (roster `StudentPicker` → add dialog; per-row delete-with-confirm); recent-first caps 10/15 with "showing last n of m" honesty lines; empty/loading states; FAB "New announcement"; compose takeover hosted here (homework pattern, tab route)
+  - `parents/ui/AnnouncementEdit.kt` — optional class via `ClassPicker` (+ Clear), title, body (minLines 5, required to share), Share-as-PDF + Copy-text row, Templates section, bottom-anchored primary Share; back/close discards unshared draft (VM `close()`); template apply confirms before overwriting a dirty draft; clipboard copy is plain text (card note)
+  - `parents/ui/TemplateChips.kt` — recent-first `FilterChip`s, tap = apply, long-press = in-place edit dialog (name + message, delete), AssistChip "Save as template" prefilled from draft; TagChips wrapper pattern (tap never double-fires)
+  - `parents/ui/ContactLog.kt` — `AddContactEntryDialog` (date defaults today, backdatable via M3 DatePicker — yesterday's call is a real case) + `ContactEntryRowContent`
+  - `nav/AppNavHost.kt` (app-shell seam, wired as lead) — PARENTS placeholder replaced with `ParentsScreen()`; the only cross-module file in this commit
+- **Remaining:** on-device QA (no device/emulator here): template overwrite confirm, PDF share via share sheet on a real device, clipboard behavior on API 33+, backdate picker, delete confirms.
+- **Blocked on:** nothing.
+- **Handoff note:** `exports/` is now shared between parents (announcement PDFs) and the future export-backup module — sweep ownership belongs to export-backup (pdfstore KDoc says so). PDFs are derivable artifacts: the Announcement row is the source of truth, abandon deletes the row only. No new dependencies; no `file_paths.xml` change; no internet permission. Template delete never touches Announcement rows (repository enforces; card build note honored). `StaticLayout.Builder.setIncludeFontPadding` does not exist on the current compile SDK — removed, default applies.
+- **Last checkpoint:** 2026-10-21 (DONE)

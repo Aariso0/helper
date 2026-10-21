@@ -12,6 +12,7 @@ import com.example.helper.homework.ui.HomeworkScreen
 import com.example.helper.roster.ui.classlist.ClassListScreen
 import com.example.helper.roster.ui.studentlist.StudentListScreen
 import com.example.helper.roster.ui.studentpage.StudentPageScreen
+import com.example.helper.parents.ui.ParentsScreen
 import com.example.helper.studentfeedback.ui.FeedbackScreen
 import com.example.helper.studentfeedback.ui.QuickNoteScreen
 import com.example.helper.today.TodayScreen
@@ -20,7 +21,7 @@ import java.time.LocalDate
 /**
  * The route table + feature wiring (app-shell card). Every route string and
  * every argument parse lives in [Routes]; feature screens only ever receive
- * typed values. Modules not yet built (parents, export) sit behind honest
+ * typed values. Modules not yet built (export) sit behind honest
  * placeholders until they hand their root composable over (build protocol:
  * message the app-shell owner).
  */
@@ -58,11 +59,7 @@ fun AppNavHost(
             )
         }
         composable(Routes.PARENTS) {
-            ModulePlaceholderScreen(
-                title = "Parents",
-                moduleName = "parents",
-                whatItWillDo = "Write parent announcements (shared manually) and keep the per-student parent contact log.",
-            )
+            ParentsScreen()
         }
 
         // ── Roster (built) ─────────────────────────────────────────────────
