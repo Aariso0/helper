@@ -54,11 +54,25 @@ object Routes {
     /** Reports & backup destination (export-backup module). */
     const val EXPORT = "export"
 
+    // ── Exams & Results ──────────────────────────────────────────────────
+    /** Exam list for one class; the class rides along so the FAB can create. */
+    const val EXAMS_LIST = "exams/{classId}"
+    fun examsList(classId: String) = "exams/$classId"
+    const val EXAM_CREATE = "exam/create/{classId}"
+    fun examCreate(classId: String) = "exam/create/$classId"
+    const val EXAM_DETAIL = "exam/{examId}/class/{classId}"
+    fun examDetail(examId: String, classId: String) = "exam/$examId/class/$classId"
+    const val EXAM_MARK_ENTRY = "exam/{examId}/class/{classId}/marks/{subjectId}"
+    fun examMarkEntry(examId: String, classId: String, subjectId: String) =
+        "exam/$examId/class/$classId/marks/$subjectId"
+
     // ── Argument names + parsing (NavHost-only) ───────────────────────────
     object Args {
         const val CLASS_ID = "classId"
         const val STUDENT_ID = "studentId"
         const val DATE_EPOCH_DAY = "dateEpochDay"
+        const val EXAM_ID = "examId"
+        const val SUBJECT_ID = "subjectId"
     }
 }
 
@@ -76,6 +90,7 @@ fun NavHostController.navigateToTab(route: String) {
 // Argument parsing — callers are the NavHost composable lambdas only.
 fun NavBackStackEntry.classId(): String? = arguments?.getString(Routes.Args.CLASS_ID)
 fun NavBackStackEntry.studentId(): String? = arguments?.getString(Routes.Args.STUDENT_ID)
+fun NavBackStackEntry.subjectId(): String? = arguments?.getString(Routes.Args.SUBJECT_ID)
 fun NavBackStackEntry.dateEpochDay(): Long? = arguments?.let { args ->
     if (args.containsKey(Routes.Args.DATE_EPOCH_DAY)) args.getLong(Routes.Args.DATE_EPOCH_DAY) else null
 }

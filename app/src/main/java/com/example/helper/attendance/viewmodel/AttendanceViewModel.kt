@@ -114,14 +114,20 @@ class AttendanceViewModel(
     }
 
     /** README §3.1: tap = mark absent; tap again = back to present. */
-    fun onToggleAbsent(studentId: String) {
-        val current = draft.value[studentId] ?: return
+    /**
+     * Tap = absent, tap again = present. Returns the status the row had before
+     * the tap (read from the live draft, not from the last composition), so the
+     * Undo snackbar can only ever revert the mark it is describing.
+     */
+    fun onToggleAbsent(studentId: String): AttendanceStatus? {
+        val current = draft.value[studentId] ?: return null
         val next = if (current == AttendanceStatus.ABSENT) {
             AttendanceStatus.PRESENT
         } else {
             AttendanceStatus.ABSENT
         }
         onSetStatus(studentId, next)
+        return current
     }
 
     /** Single status set (long-press sheet + undo share this path). */

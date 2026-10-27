@@ -55,7 +55,9 @@ import com.example.helper.attendance.viewmodel.AttendanceViewModel.Counters
 import com.example.helper.attendance.viewmodel.attendanceViewModel
 import com.example.helper.coredata.entity.AttendanceStatus
 import com.example.helper.coredata.entity.Student
+import androidx.compose.animation.core.animateIntAsState
 import com.example.helper.share.shareText
+import com.example.helper.motion.Motion
 import com.example.helper.theme.ShellDimens
 import java.time.Instant
 import java.time.LocalDate
@@ -85,6 +87,20 @@ fun AttendanceScreen(
     var query by remember { mutableStateOf("") }
     var statusSheetStudent by remember { mutableStateOf<Student?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
+
+    /**
+     * One snackbar at a time. The old code queued one per tap, so with two
+     * quick marks the snackbar on screen belonged to the *first* tap while the
+     * second waited behind it — Undo then reverted the previous child. The
+     * visible action is now always the newest one.
+     */
+    fun showUndo(message: String, undo: () -> Unit) {
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            val result = snackbarHostState.showSnackbar(message, actionLabel = "Undo")
+            if (result == SnackbarResult.ActionPerformed) undo()
+        }
+    }
 
     if (state.loading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -117,14 +133,8 @@ fun AttendanceScreen(
             onStatusChosen = { status ->
                 statusSheetStudent = null
                 viewModel.onSetStatus(student.id, status)
-                scope.launch {
-                    val result = snackbarHostState.showSnackbar(
-                        message = "Marked ${status.name.lowercase()}",
-                        actionLabel = "Undo",
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.onSetStatus(student.id, previousForSheet)
-                    }
+                showUndo("Marked ${status.name.lowercase()}") {
+                    viewModel.onSetStatus(student.id, previousForSheet)
                 }
             },
             onDismiss = { statusSheetStudent = null },
@@ -241,17 +251,16 @@ fun AttendanceScreen(
                         student = student,
                         status = previous,
                         onClick = {
-                            viewModel.onToggleAbsent(student.id)
-                            scope.launch {
-                                val label = if (previous == AttendanceStatus.ABSENT) {
+                            // The status the row actually had, read at tap time:
+                            // Undo reverts this tap and nothing else.
+                            val before = viewModel.onToggleAbsent(student.id)
+                            if (before != null) {
+                                val label = if (before == AttendanceStatus.ABSENT) {
                                     "Marked present"
                                 } else {
                                     "Marked absent"
                                 }
-                                val result = snackbarHostState.showSnackbar(label, actionLabel = "Undo")
-                                if (result == SnackbarResult.ActionPerformed) {
-                                    viewModel.onSetStatus(student.id, previous)
-                                }
+                                showUndo(label) { viewModel.onSetStatus(student.id, before) }
                             }
                         },
                         onLongClick = { statusSheetStudent = student },
@@ -268,18 +277,22 @@ fun AttendanceScreen(
 /** Live counter ("Present 28 | Absent 2") — absences stand out at a glance. */
 @Composable
 private fun CounterText(counters: Counters) {
+    val p by animateIntAsState(counters.present, Motion.Spatial.FastInt, label = "p")
+    val a by animateIntAsState(counters.absent, Motion.Spatial.FastInt, label = "a")
+    val l by animateIntAsState(counters.late, Motion.Spatial.FastInt, label = "l")
+    val e by animateIntAsState(counters.excused, Motion.Spatial.FastInt, label = "e")
     val text = buildAnnotatedString {
         withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurface)) {
-            append("Present ${counters.present}")
+            append("Present $p")
         }
         if (counters.absent > 0) {
             append(" · ")
             withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
-                append("Absent ${counters.absent}")
+                append("Absent $a")
             }
         }
-        if (counters.late > 0) append(" · Late ${counters.late}")
-        if (counters.excused > 0) append(" · Excused ${counters.excused}")
+        if (counters.late > 0) append(" · Late $l")
+        if (counters.excused > 0) append(" · Excused $e")
     }
     Text(text = text, style = MaterialTheme.typography.labelLarge)
 }

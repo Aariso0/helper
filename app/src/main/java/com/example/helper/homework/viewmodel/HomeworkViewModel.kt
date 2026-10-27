@@ -15,7 +15,6 @@ import com.example.helper.coredata.repository.HomeworkRepository
 import com.example.helper.coredata.repository.SchoolClassRepository
 import com.example.helper.homework.attachmentstore.AttachmentStore
 import java.io.File
-import java.io.IOException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-// ── Shared share payload (seam agreed with app-shell in grp_chat) ──────────
+// ── Shared share payload (seam agreed with app-shell) ─────────────────────
 
 private val shareDateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy")
 
@@ -263,8 +262,11 @@ class HomeworkEditViewModel(
                 val name = attachmentStore.displayNameOf(uri) ?: "file"
                 val file = try {
                     attachmentStore.importFrom(uri, name)
-                } catch (_: IOException) {
-                    _events.tryEmit(Event.ShowError("Couldn’t attach “$name”"))
+                } catch (_: Exception) {
+                    // Not just IOException: a picker result whose URI grant was
+                    // dropped throws SecurityException. Either way the teacher
+                    // must see that the file did not attach.
+                    _events.tryEmit(Event.ShowError("Couldn’t attach “$name” — try picking it again."))
                     return@forEach
                 }
                 addAttachmentRow(fileName = name, file = file)

@@ -38,7 +38,7 @@ fun OverallSummaryCard(summary: MonthlySummary) {
                 style = MaterialTheme.typography.headlineMedium,
             )
             Text(
-                text = "${summary.trackedRecords} marks tracked",
+                text = "${summary.trackedRecords} ${plural(summary.trackedRecords, "mark")} tracked",
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(Modifier.height(4.dp))
@@ -47,7 +47,8 @@ fun OverallSummaryCard(summary: MonthlySummary) {
                 style = MaterialTheme.typography.bodySmall,
             )
             Text(
-                text = "${summary.trackedDays} days tracked · ${summary.classes.size} classes",
+                text = "${summary.trackedDays} ${plural(summary.trackedDays, "day")} tracked · " +
+                    "${summary.classes.size} ${plural(summary.classes.size, "class", "classes")}",
                 style = MaterialTheme.typography.bodySmall,
             )
             Text(
@@ -175,6 +176,10 @@ fun NoSummaryCard(title: String, body: String) {
 
 internal fun percentLabel(percentage: Int?): String =
     if (percentage == null) "—" else "$percentage%"
+
+/** "1 day", "2 days" — counts are read as words, never as "1 days" or "2 classs". */
+internal fun plural(count: Int, word: String, plural: String = "${word}s"): String =
+    if (count == 1) word else plural
 
 internal fun countsLine(present: Int, absent: Int, late: Int, excused: Int): String =
     "P $present · A $absent · L $late · E $excused"

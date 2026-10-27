@@ -79,8 +79,13 @@ fun ExportScreen(onBack: () -> Unit) {
     val snackbarHostState = remember { SnackbarHostState() }
     var showClassPicker by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
+    // Notices live in the screen state, not in a one-shot channel: a message
+    // produced while the file picker has the activity keeps until this
+    // collector is back, so a rejected restore can never be silent.
+    LaunchedEffect(state.pendingMessage) {
+        val message = state.pendingMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.consumeMessage()
     }
 
     // One CreateDocument launcher per format: the MIME type decides the

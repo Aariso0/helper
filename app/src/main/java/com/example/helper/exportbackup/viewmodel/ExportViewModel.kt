@@ -29,12 +29,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -91,7 +89,7 @@ class ExportViewModel(
 
     data class UiState(
         val loading: Boolean = true,
-        val month: YearMonth = YearMonth.now().minusMonths(1),
+        val month: YearMonth = YearMonth.now(),
         val monthLabel: String = "",
         val isCurrentMonth: Boolean = false,
         val selectedClassId: String? = null,
@@ -101,6 +99,8 @@ class ExportViewModel(
         val work: Work = Work.Idle,
         val preview: RestorePreview? = null,
         val outcome: RestoreOutcome? = null,
+        /** Transient notice for the snackbar; [consumeMessage] clears it. */
+        val pendingMessage: String? = null,
     ) {
         val canExport: Boolean get() = summary?.hasRecords == true && work == Work.Idle
     }
@@ -108,14 +108,52 @@ class ExportViewModel(
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    /** Transient notices; the screen shows them in a snackbar. */
-    private val _messages = Channel<String>(Channel.BUFFERED)
-    val messages = _messages.receiveAsFlow()
-
     private var loadJob: Job? = null
 
     init {
-        reload(month = _state.value.month)
+        loadDefaultMonth()
+    }
+
+    /** The snackbar has shown [UiState.pendingMessage]; clear it so it is shown once. */
+    fun consumeMessage() {
+        _state.update { it.copy(pendingMessage = null) }
+    }
+
+    private fun notify(message: String) {
+        _state.update { it.copy(pendingMessage = message) }
+    }
+
+    /**
+     * Reports opens where the data is: the current month when anything was
+     * marked in it, otherwise last month — the month a teacher is usually
+     * exporting, and the one with marks. Last month is only a fallback: it is
+     * never shown when the current month has data.
+     */
+    private fun loadDefaultMonth() {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            val current = YearMonth.now()
+            _state.update {
+                it.copy(
+                    loading = true,
+                    month = current,
+                    monthLabel = current.format(MONTH_FORMAT),
+                    isCurrentMonth = true,
+                )
+            }
+            val currentLoad = load(current, classId = null)
+            if (currentLoad.summary.hasRecords) {
+                apply(current, currentLoad)
+                return@launch
+            }
+            val previous = current.minusMonths(1)
+            val previousLoad = load(previous, classId = null)
+            if (previousLoad.summary.hasRecords) {
+                apply(previous, previousLoad)
+            } else {
+                apply(current, currentLoad)
+            }
+        }
     }
 
     fun previousMonth() = showMonth(_state.value.month.minusMonths(1))
@@ -136,6 +174,51 @@ class ExportViewModel(
         reload(month = capped, classId = _state.value.selectedClassId)
     }
 
+    /** Everything one month + scope needs, loaded off the repositories. */
+    private class MonthLoad(
+        val classes: List<SchoolClass>,
+        val effectiveClassId: String?,
+        val summary: MonthlySummary,
+    )
+
+    private suspend fun load(month: YearMonth, classId: String?): MonthLoad {
+        val fromEpochDay = month.atDay(1).toEpochDay()
+        val toEpochDay = month.atEndOfMonth().toEpochDay()
+        val classes = classRepository.observeAll().first()
+        val students = studentRepository.observeAll().first()
+        // A class deleted since it was picked falls back to all classes.
+        val effectiveClassId = classId?.takeIf { id -> classes.any { it.id == id } }
+        val records = classes
+            .filter { effectiveClassId == null || it.id == effectiveClassId }
+            .flatMap { attendanceRepository.getForClassInRange(it.id, fromEpochDay, toEpochDay) }
+        val summary = buildMonthlySummary(
+            year = month.year,
+            month = month.monthValue,
+            classes = classes,
+            students = students,
+            records = records,
+            selectedClassId = effectiveClassId,
+        )
+        return MonthLoad(classes, effectiveClassId, summary)
+    }
+
+    private fun apply(month: YearMonth, loaded: MonthLoad) {
+        _state.update {
+            it.copy(
+                loading = false,
+                month = month,
+                monthLabel = month.format(MONTH_FORMAT),
+                isCurrentMonth = month == YearMonth.now(),
+                selectedClassId = loaded.effectiveClassId,
+                scopeLabel = loaded.effectiveClassId
+                    ?.let { id -> loaded.classes.firstOrNull { it.id == id }?.name }
+                    ?: "All classes",
+                classes = loaded.classes,
+                summary = loaded.summary,
+            )
+        }
+    }
+
     private fun reload(month: YearMonth, classId: String? = _state.value.selectedClassId) {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
@@ -147,34 +230,7 @@ class ExportViewModel(
                     isCurrentMonth = month == YearMonth.now(),
                 )
             }
-            val fromEpochDay = month.atDay(1).toEpochDay()
-            val toEpochDay = month.atEndOfMonth().toEpochDay()
-            val classes = classRepository.observeAll().first()
-            val students = studentRepository.observeAll().first()
-            // A class deleted since it was picked falls back to all classes.
-            val effectiveClassId = classId?.takeIf { id -> classes.any { it.id == id } }
-            val records = classes
-                .filter { effectiveClassId == null || it.id == effectiveClassId }
-                .flatMap { attendanceRepository.getForClassInRange(it.id, fromEpochDay, toEpochDay) }
-            val summary = buildMonthlySummary(
-                year = month.year,
-                month = month.monthValue,
-                classes = classes,
-                students = students,
-                records = records,
-                selectedClassId = effectiveClassId,
-            )
-            _state.update {
-                it.copy(
-                    loading = false,
-                    selectedClassId = effectiveClassId,
-                    scopeLabel = effectiveClassId
-                        ?.let { id -> classes.firstOrNull { it.id == id }?.name }
-                        ?: "All classes",
-                    classes = classes,
-                    summary = summary,
-                )
-            }
+            apply(month, load(month, classId))
         }
     }
 
@@ -213,11 +269,11 @@ class ExportViewModel(
                         }
                     }
                 }
-                _messages.send("${format.label} export saved.")
+                notify("${format.label} export saved.")
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                _messages.send("Couldn't save the ${format.label} export. Try another location.")
+                notify("Couldn't save the ${format.label} export. Try another location.")
             } finally {
                 _state.update { it.copy(work = Work.Idle) }
             }
@@ -232,11 +288,13 @@ class ExportViewModel(
             try {
                 val manifest = backupWriter.write(uri)
                 val rows = manifest.tableCounts.values.sum()
-                _messages.send("Backup saved — $rows records and ${manifest.fileCount} files.")
+                val recordsLabel = if (rows == 1) "1 record" else "$rows records"
+                val filesLabel = if (manifest.fileCount == 1) "1 file" else "${manifest.fileCount} files"
+                notify("Backup saved — $recordsLabel and $filesLabel.")
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                _messages.send("Couldn't save the backup. Try another location.")
+                notify("Couldn't save the backup. Try another location.")
             } finally {
                 _state.update { it.copy(work = Work.Idle) }
             }
@@ -270,10 +328,10 @@ class ExportViewModel(
                 throw cancelled
             } catch (rejected: RestoreRejected) {
                 _state.update { it.copy(work = Work.Idle) }
-                _messages.send(rejected.message ?: "This backup can't be restored.")
+                notify(rejected.message ?: "This backup can't be restored.")
             } catch (_: Exception) {
                 _state.update { it.copy(work = Work.Idle) }
-                _messages.send("Couldn't read that file. Choose a Helper backup (.zip).")
+                notify("Couldn't read that file. Choose a Helper backup (.zip).")
             }
         }
     }
@@ -302,7 +360,7 @@ class ExportViewModel(
             } catch (rejected: RestoreRejected) {
                 // Nothing was touched — the screen stays usable.
                 _state.update { it.copy(work = Work.Idle) }
-                _messages.send(rejected.message ?: "This backup can't be restored.")
+                notify(rejected.message ?: "This backup can't be restored.")
             } catch (failed: RestoreFailed) {
                 _state.update {
                     it.copy(

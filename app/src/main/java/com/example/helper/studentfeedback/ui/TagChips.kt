@@ -1,9 +1,6 @@
 package com.example.helper.studentfeedback.ui
 
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.helper.scaffold.onLongPress
 import com.example.helper.coredata.entity.FeedbackTag
 
 /**
@@ -35,7 +33,7 @@ import com.example.helper.coredata.entity.FeedbackTag
  * Tap selects/commits via [onTagClick]; long-press edits in place (rename /
  * delete dialog); "+" adds — no settings screen, no setup wall.
  */
-@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TagChipRow(
     tags: List<FeedbackTag>,
@@ -63,23 +61,18 @@ fun TagChipRow(
             )
         }
         tags.forEach { tag ->
-            // Long-press detection lives on a wrapper *around* the chip, not on
-            // the chip itself: the chip's own clickable owns taps (so a tap
-            // can never fire twice or get swallowed), and the wrapper's
-            // onClick is an empty no-op that only exists so combinedClickable
-            // can host onLongClick.
-            Box(modifier = Modifier.combinedClickable(
-                onClick = {},
-                onLongClick = { tagBeingEdited = tag },
-            )) {
-                FilterChip(
-                    selected = tag.id == selectedTagId,
-                    onClick = { onTagClick(tag) },
-                    label = {
-                        Text(tag.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
-                )
-            }
+            // Long-press must sit on the chip's own modifier: a FilterChip
+            // consumes the press itself, so a wrapper Box never saw it.
+            // `onLongPress` reads the press before the chip does and leaves
+            // taps alone (see the modifier's docs).
+            FilterChip(
+                selected = tag.id == selectedTagId,
+                onClick = { onTagClick(tag) },
+                modifier = Modifier.onLongPress { tagBeingEdited = tag },
+                label = {
+                    Text(tag.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                },
+            )
         }
         androidx.compose.material3.AssistChip(
             onClick = { showAddDialog = true },

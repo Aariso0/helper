@@ -2,8 +2,6 @@ package com.example.helper.exportbackup.backupio
 
 import android.content.Context
 import android.content.Intent
-import android.os.Handler
-import android.os.Looper
 import kotlin.system.exitProcess
 
 /**
@@ -14,7 +12,14 @@ import kotlin.system.exitProcess
  * and the old process exits.
  *
  * Deliberately no process-restart dependency (card excludes third-party
- * helpers around this dance): a launch intent, a short delay, then exit.
+ * helpers around this dance): a launch intent, then exit.
+ *
+ * **Exit immediately after the start request.** `startActivity` is a
+ * synchronous call into system_server, so by the time it returns the relaunch
+ * is already queued there; killing the process straight away lets the system
+ * bring the app back in a fresh one. Waiting first is what broke this before:
+ * the new screen came up inside the process we were about to kill, so the
+ * teacher was left on the launcher.
  */
 object AppRestart {
 
@@ -22,8 +27,6 @@ object AppRestart {
         val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return
         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         context.startActivity(launchIntent)
-        Handler(Looper.getMainLooper()).postDelayed({ exitProcess(0) }, RESTART_DELAY_MILLIS)
+        exitProcess(0)
     }
-
-    private const val RESTART_DELAY_MILLIS = 600L
 }

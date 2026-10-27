@@ -1,9 +1,7 @@
 package com.example.helper.parents.ui
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -26,9 +24,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.helper.coredata.entity.AnnouncementTemplate
+import com.example.helper.motion.Motion
+import com.example.helper.scaffold.onLongPress
 
 /**
  * The teacher-editable template row (card: `TemplateChips`). Recent-first
@@ -37,7 +38,7 @@ import com.example.helper.coredata.entity.AnnouncementTemplate
  * template in place (name + message, delete); "+" saves the current draft as
  * a new template. No settings screen, no setup wall.
  */
-@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TemplateChipRow(
     templates: List<AnnouncementTemplate>,
@@ -65,28 +66,28 @@ fun TemplateChipRow(
             )
         }
         templates.forEach { template ->
-            // Long-press detection lives on a wrapper *around* the chip (same
-            // as feedback's TagChipRow): the chip's clickable owns taps, the
-            // wrapper only hosts onLongClick.
-            Box(
-                modifier = Modifier.combinedClickable(
-                    onClick = { onApply(template) },
-                    onLongClick = { templateBeingEdited = template },
-                ),
-            ) {
-                FilterChip(
-                    selected = false,
-                    onClick = { onApply(template) },
-                    label = {
-                        Text(
-                            text = template.title?.takeIf { it.isNotBlank() }
-                                ?: template.body.lineSequence().first().take(CHIP_LABEL_MAX),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                )
-            }
+            // Same fix as feedback's TagChipRow: the long-press sits on the
+            // chip's own modifier, because a wrapper around the chip never
+            // received the press.
+            val scale by animateFloatAsState(1f, Motion.Spatial.Pop, label = "tmplScale")
+            FilterChip(
+                selected = false,
+                onClick = { onApply(template) },
+                modifier = Modifier
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .onLongPress { templateBeingEdited = template },
+                label = {
+                    Text(
+                        text = template.title?.takeIf { it.isNotBlank() }
+                            ?: template.body.lineSequence().first().take(CHIP_LABEL_MAX),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+            )
         }
         AssistChip(
             onClick = { showSaveAsDialog = true },

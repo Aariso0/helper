@@ -31,7 +31,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.helper.nav.AppNavHost
 import com.example.helper.nav.Routes
 import com.example.helper.nav.navigateToTab
-import com.example.helper.theme.Motion
+import com.example.helper.motion.Motion
 
 /** Exactly the four README tabs — no settings, no profile, no extras (rule 3). */
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -63,12 +63,12 @@ fun AppScaffold() {
             // content padding animates with it — no hard cut, no layout jump.
             AnimatedVisibility(
                 visible = Routes.isTabRoot(currentRoute),
-                enter = slideInVertically(tween(Motion.Duration.Medium, easing = Motion.Easing.Decelerate)) { it } +
-                    expandVertically(tween(Motion.Duration.Medium, easing = Motion.Easing.Decelerate), expandFrom = Alignment.Bottom) +
-                    fadeIn(tween(Motion.Duration.Medium, easing = Motion.Easing.Decelerate)),
-                exit = slideOutVertically(tween(Motion.Duration.Medium, easing = Motion.Easing.Accelerate)) { it } +
-                    shrinkVertically(tween(Motion.Duration.Medium, easing = Motion.Easing.Accelerate), shrinkTowards = Alignment.Bottom) +
-                    fadeOut(tween(Motion.Duration.Short, easing = Motion.Easing.Accelerate)),
+                enter = slideInVertically(Motion.Spatial.FastOffset) { it } +
+                    expandVertically(Motion.Spatial.FastSize, expandFrom = Alignment.Bottom) +
+                    fadeIn(Motion.Effects.Default),
+                exit = slideOutVertically(Motion.Spatial.FastOffset) { it } +
+                    shrinkVertically(Motion.Spatial.FastSize, shrinkTowards = Alignment.Bottom) +
+                    fadeOut(Motion.Effects.Default),
             ) {
                 NavigationBar {
                     tabs.forEach { tab ->

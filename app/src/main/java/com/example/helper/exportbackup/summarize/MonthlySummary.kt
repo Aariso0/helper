@@ -72,6 +72,17 @@ private fun percentage(counted: Int, total: Int): Int? =
 const val PERCENTAGE_RULE = "Present % counts late arrivals as present."
 
 /**
+ * Register order for the exported sheet, matching `StudentDao.observeInClass`:
+ * numeric rolls first in numeric order (1, 2, … 10, 11 — not text order), then
+ * non-numeric rolls alphabetically, then students with no roll number.
+ */
+internal val ROLL_NUMBER_ORDER: Comparator<Student> =
+    compareBy<Student> { it.rollNumber == null }
+        .thenBy { it.rollNumber?.toIntOrNull() ?: Int.MAX_VALUE }
+        .thenBy { it.rollNumber.orEmpty().lowercase() }
+        .thenBy { it.name.lowercase() }
+
+/**
  * Pure aggregation — no Room, no coroutines, no clock. The ViewModel loads
  * the rows for the month and hands them here; every figure is derived from
  * those same rows, so no second stats store can drift.
@@ -94,11 +105,7 @@ fun buildMonthlySummary(
         .map { schoolClass ->
             val classStudents = students
                 .filter { it.classId == schoolClass.id }
-                .sortedWith(
-                    compareBy<Student> { it.rollNumber == null }
-                        .thenBy { it.rollNumber.orEmpty() }
-                        .thenBy { it.name.lowercase() },
-                )
+                .sortedWith(ROLL_NUMBER_ORDER)
             val classRecords = records.filter { it.classId == schoolClass.id }
             ClassMonthSummary(
                 classId = schoolClass.id,

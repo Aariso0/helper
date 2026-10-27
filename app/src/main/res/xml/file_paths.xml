@@ -10,4 +10,5 @@
     <files-path name="student_photos" path="student_photos/" />
     <files-path name="attachments" path="attachments/" />
     <files-path name="exports" path="exports/" />
+    <cache-path name="exams_cache" path="exams/" />
 </paths>

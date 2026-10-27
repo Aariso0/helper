@@ -190,9 +190,10 @@ class ImportViewModel(
                 }
                 studentRepository.upsertAll(students)
                 val updatedNote = if (updated > 0) " ($updated updated)" else ""
+                val countLabel = if (students.size == 1) "1 student" else "${students.size} students"
                 _state.value = _state.value.copy(
                     phase = ImportPhase.DONE,
-                    doneMessage = "Imported ${students.size} students into ${targetClass.name}$updatedNote",
+                    doneMessage = "Imported $countLabel into ${targetClass.name}$updatedNote",
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(

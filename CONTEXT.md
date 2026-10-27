@@ -6,7 +6,8 @@ A local, on-device prototype that lets one teacher take attendance, log feedback
 |---|---|---|---|---|---|
 | `core-data` | Room + repositories, one data layer | drafted | built | — | `data-repositories` |
 | `roster` | classes, students, student page, CSV/Excel import | drafted | built | `data-repositories` | `class-student-picker`, `photo-storage` |
-| `app-shell` | nav, theme, Today home, share helpers | drafted | built | `data-repositories`, `*-screens` (7 edges) | `share-helpers`, `app-theme` |
+| `app-shell` | nav, theme, Today home, share helpers | drafted | needs-rework | `data-repositories`, `motion-system`, `*-screens` (7 edges) | `share-helpers`, `app-theme` |
+| `animations` | spring motion: tokens, nav transitions, shared elements, micro-interactions | drafted | not-started | `app-theme` | `motion-system` |
 | `attendance` | tap-absentees screen, counters, history | drafted | built | `data-repositories`, `share-helpers` | `attendance-screen` |
 | `student-feedback` | quick notes with preset tags | drafted | built | `data-repositories` | `feedback-screen`, `quick-note-screen`, `feedback-timeline` |
 | `homework` | compose + attachments + share | drafted | built | `data-repositories`, `share-helpers`, `class-student-picker` | `homework-screen`, `attachment-storage` |

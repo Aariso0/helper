@@ -11,8 +11,8 @@ The blueprint folders (`modules/`, `_index/`, `_shared/`, `_templates/`) stay **
 
 ## Starting (lead)
 
-1. Read `CLAUDE.md` → `_index/MODULES.md` → `_index/CONNECTIONS.md`.
-2. `mkdir -p chat/grp_chat` — the group chat log's home.
+1. Read your agent instructions → `_index/MODULES.md` → `_index/CONNECTIONS.md`.
+2. Create the group chat log folder.
 3. Pick modules with `status: drafted` and `build` not yet `built`. Producers before consumers (a module that consumes nothing goes first). Keep the team small — each teammate is a full session and costs tokens.
 4. Spawn one teammate per module. Each is told: its module slug, "read `_shared/build-protocol.md` and `modules/<slug>.md`", and the names of the teammates whose modules it consumes from or produces for.
 5. Log a `TEAM-START` line (see Group chat).
@@ -28,12 +28,12 @@ The blueprint folders (`modules/`, `_index/`, `_shared/`, `_templates/`) stay **
 7. **Never deviate from `Exact stack`** (different library, version, or approach). Stop, add an `Open questions` line, message the lead, log `BLOCKED`. The user decides; a stack change is a redo through the blueprint skill, not a quiet patch.
 8. **Done:** `Remaining` empty, everything in `File & folder layout` coded, set `build: built`, log `DONE`.
    - **The gate:** `./gradlew :app:compileDebugKotlin :app:assembleDebug :app:testDebugUnitTest --console=plain` must be green with **zero warnings**. Warnings are defects — fix them, never suppress them (`@Suppress`, blanket `@OptIn`, `-nowarn`).
-   - Then the bookkeeping sweep: card (`build:` + `Build progress`) → `_index/MODULES.md` → `DONE` line in `chat/grp_chat/` → `chat/CURRENT.md` + a journal entry → commit only your module's files. `.idea/` is never committed.
+   - Then the bookkeeping sweep: card (`build:` + `Build progress`) → `_index/MODULES.md` → `DONE` line in the group chat log → the live project status + a journal entry → commit only your module's files. `.idea/` is never committed.
 9. **Running low on tokens or context:** finish the current chunk, write the checkpoint and a `Handoff note` (what you were about to do, any trap you found), log `HANDOFF`, stop. Do not start a new chunk you can't checkpoint.
 
 ## Group chat log
 
-- Folder: `chat/grp_chat/` — one file per day, `YYYY-MM-DD.md`, append-only.
+- Folder: `$LOG` — one file per day, `YYYY-MM-DD.md`, append-only.
 - One line per entry, newest at the bottom:
 
 ```
@@ -44,15 +44,14 @@ The blueprint folders (`modules/`, `_index/`, `_shared/`, `_templates/`) stay **
 ```
 
 - Get the timestamp from the shell, never from memory: `date -Iseconds`.
-- Append with one command per entry so lines don't interleave:
-  `echo "[$(date -Iseconds)] <from> → <to>: <message>" >> "chat/grp_chat/$(date +%F).md"`
+- Append to today's file with one command per entry so lines don't interleave.
 - Never rewrite or delete earlier lines.
 - Log: every message you send to a teammate or the lead, every decision about an interface, and the markers `TEAM-START`, `CLAIM`, `CHECKPOINT`, `BLOCKED`, `DONE`, `HANDOFF` (as `SYSTEM <slug>: <marker> <short note>`).
 
 ## Resuming (any new agent, any session)
 
-1. `CLAUDE.md` → `_index/MODULES.md` (blueprint `status` and `build` per module) → `_index/CONNECTIONS.md`.
-2. Tail the latest file in `chat/grp_chat/` (last ~50 lines) for what was just discussed.
+1. Your agent instructions → `_index/MODULES.md` (blueprint `status` and `build` per module) → `_index/CONNECTIONS.md`.
+2. Tail the latest file in the group chat log (last ~50 lines) for what was just discussed.
 3. Open only the card you're taking over and read its `Build progress` — `Coded`, `Remaining`, `Handoff note`. Trust it; don't re-derive it by re-reading all the code.
 4. If a card's `build:` and `MODULES.md` disagree, the card wins; fix `MODULES.md`.
 5. Claim the module (Teammate loop step 2) and continue from the first `Remaining` item.
@@ -61,8 +60,8 @@ The blueprint folders (`modules/`, `_index/`, `_shared/`, `_templates/`) stay **
 
 ```
 Create an agent team to build this project from its blueprint.
-Read CLAUDE.md and _shared/build-protocol.md first, and follow them exactly.
-Lead: create chat/grp_chat/, then spawn one teammate per drafted module,
+Read your agent instructions and _shared/build-protocol.md first, and follow them exactly.
+Lead: create the group chat log folder, then spawn one teammate per drafted module,
 starting with modules that consume nothing. Each teammate owns one module,
 talks directly to the teammates it connects with, logs every message to the
 group chat, and checkpoints into its card's Build progress after every chunk.

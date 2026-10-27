@@ -90,7 +90,10 @@ object SummaryExcelWriter {
         excel.rename(sheetName, "Attendance")
 
         val bytes = excel.encode() ?: throw IOException("Could not encode the workbook")
-        output.write(bytes)
+        // kexcel declares <dimension ref="A1"/> whatever the sheet holds; a
+        // viewer that trusts it opens on an empty grid. Correct the declared
+        // range to the cells actually written.
+        output.write(XlsxDimension.patch(bytes))
     }
 
     private val COLUMN_WIDTHS = listOf(18.0, 26.0, 10.0, 9.0, 9.0, 8.0, 9.0, 13.0, 11.0)

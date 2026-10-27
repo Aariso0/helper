@@ -46,11 +46,21 @@ class AnnouncementRepository(private val dao: AnnouncementDao) {
 
     suspend fun deleteAnnouncement(announcement: Announcement) = dao.deleteAnnouncement(announcement)
 
+    /**
+     * Saves a template, reusing an identical one (same name and message) instead
+     * of adding a second chip with the same label. Reuse also counts as use, so
+     * the template keeps its place at the front of the recent-first row.
+     */
     suspend fun createTemplate(title: String?, body: String): AnnouncementTemplate {
+        val cleanTitle = title?.trim()?.ifEmpty { null }
+        dao.findTemplate(cleanTitle, body)?.let { existing ->
+            markTemplateUsed(existing.id)
+            return existing
+        }
         val now = System.currentTimeMillis()
         val template = AnnouncementTemplate(
             id = UUID.randomUUID().toString(),
-            title = title?.trim()?.ifEmpty { null },
+            title = cleanTitle,
             body = body,
             createdAt = now,
             updatedAt = now,

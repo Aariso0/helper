@@ -22,11 +22,18 @@ class FeedbackRepository(private val dao: FeedbackDao) {
     suspend fun getNotesInRange(studentId: String, fromEpochDay: Long, toEpochDay: Long): List<FeedbackNote> =
         dao.getNotesInRange(studentId, fromEpochDay, toEpochDay)
 
+    /**
+     * Adds a preset tag, or returns the existing one when the label is already
+     * there (case-insensitive). Two identical chips would split filtering —
+     * "Great day" must be one tag, not two rows with the same text.
+     */
     suspend fun addTag(label: String): FeedbackTag {
+        val trimmed = label.trim()
+        dao.findTagByLabel(trimmed)?.let { return it }
         val now = System.currentTimeMillis()
         val tag = FeedbackTag(
             id = UUID.randomUUID().toString(),
-            label = label.trim(),
+            label = trimmed,
             sortOrder = dao.maxSortOrder() + 1,
             createdAt = now,
             updatedAt = now,

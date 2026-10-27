@@ -8,6 +8,9 @@ import androidx.room.TypeConverters
 import com.example.helper.coredata.dao.AnnouncementDao
 import com.example.helper.coredata.dao.AttendanceDao
 import com.example.helper.coredata.dao.ContactLogDao
+import com.example.helper.coredata.dao.ExamDao
+import com.example.helper.coredata.dao.ExamMarkDao
+import com.example.helper.coredata.dao.ExamSubjectDao
 import com.example.helper.coredata.dao.FeedbackDao
 import com.example.helper.coredata.dao.HomeworkDao
 import com.example.helper.coredata.dao.SchoolClassDao
@@ -17,6 +20,9 @@ import com.example.helper.coredata.entity.AnnouncementTemplate
 import com.example.helper.coredata.entity.Attachment
 import com.example.helper.coredata.entity.AttendanceRecord
 import com.example.helper.coredata.entity.ContactLogEntry
+import com.example.helper.coredata.entity.Exam
+import com.example.helper.coredata.entity.ExamMark
+import com.example.helper.coredata.entity.ExamSubject
 import com.example.helper.coredata.entity.FeedbackNote
 import com.example.helper.coredata.entity.FeedbackTag
 import com.example.helper.coredata.entity.Homework
@@ -42,6 +48,9 @@ import com.example.helper.coredata.migration.Migrations
         ContactLogEntry::class,
         Homework::class,
         Attachment::class,
+        Exam::class,
+        ExamSubject::class,
+        ExamMark::class,
     ],
     version = AppDatabase.SCHEMA_VERSION,
     exportSchema = true,
@@ -55,13 +64,16 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun announcementDao(): AnnouncementDao
     abstract fun contactLogDao(): ContactLogDao
     abstract fun homeworkDao(): HomeworkDao
+    abstract fun examDao(): ExamDao
+    abstract fun examSubjectDao(): ExamSubjectDao
+    abstract fun examMarkDao(): ExamMarkDao
 
     companion object {
         /** Name of the single Room database file (export-backup copies it). */
         const val DATABASE_NAME = "helper.db"
 
         /** Schema version — @Database reads this; backup manifests record it. */
-        const val SCHEMA_VERSION = 1
+        const val SCHEMA_VERSION = 2
 
         @Volatile
         private var instance: AppDatabase? = null

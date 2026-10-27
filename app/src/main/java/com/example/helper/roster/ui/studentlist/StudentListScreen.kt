@@ -20,9 +20,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -44,11 +48,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.example.helper.R
 import com.example.helper.coredata.entity.Student
+import com.example.helper.nav.Routes
 import com.example.helper.roster.viewmodel.studentListViewModel
 import java.io.File
 
@@ -61,12 +69,14 @@ import java.io.File
 fun StudentListScreen(
     classId: String,
     onOpenStudent: (studentId: String) -> Unit,
+    onOpenExams: (String) -> Unit = {},
     onBack: () -> Unit,
 ) {
     val viewModel = studentListViewModel(classId)
     val state by viewModel.uiState.collectAsState()
     val query by viewModel.query.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var studentBeingDeleted by remember { mutableStateOf<Student?>(null) }
 
     Scaffold(
         topBar = {
@@ -94,6 +104,14 @@ fun StudentListScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { onOpenExams(classId) }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_exam_results),
+                            contentDescription = "Exams & Results",
+                        )
                     }
                 },
             )
@@ -156,7 +174,11 @@ fun StudentListScreen(
                     contentPadding = PaddingValues(vertical = 8.dp),
                 ) {
                     items(state.visibleStudents, key = { it.id }) { student ->
-                        StudentRow(student = student, onClick = { onOpenStudent(student.id) })
+                        StudentRow(
+                            student = student,
+                            onClick = { onOpenStudent(student.id) },
+                            onDelete = { studentBeingDeleted = student },
+                        )
                     }
                     item { Spacer(Modifier.height(72.dp)) }
                 }
@@ -173,34 +195,86 @@ fun StudentListScreen(
             onDismiss = { showAddDialog = false },
         )
     }
+
+    studentBeingDeleted?.let { student ->
+        AlertDialog(
+            onDismissRequest = { studentBeingDeleted = null },
+            title = { Text("Delete ${student.name}?") },
+            text = {
+                Text(
+                    "This also deletes their attendance, feedback notes and exam marks. " +
+                        "This can’t be undone."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        studentBeingDeleted = null
+                        viewModel.deleteStudent(student)
+                    }
+                ) { Text("Delete student", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { studentBeingDeleted = null }) { Text("Cancel") }
+            },
+        )
+    }
 }
 
 @Composable
-private fun StudentRow(student: Student, onClick: () -> Unit) {
+private fun StudentRow(
+    student: Student,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        StudentAvatar(student = student, size = 44.dp)
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = student.name,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            val detail = student.rollNumber?.let { "Roll $it" }.orEmpty()
-            if (detail.isNotEmpty()) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onClick)
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StudentAvatar(student = student, size = 44.dp)
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = detail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = student.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                val detail = student.rollNumber?.let { "Roll $it" }.orEmpty()
+                if (detail.isNotEmpty()) {
+                    Text(
+                        text = detail,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
+        }
+        IconButton(onClick = { menuOpen = true }) {
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = "More options for ${student.name}",
+            )
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                onClick = {
+                    menuOpen = false
+                    onDelete()
+                },
+            )
         }
     }
 }

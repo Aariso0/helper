@@ -1,10 +1,10 @@
 ---
 module: app-shell
 status: drafted   # planned · researching · drafted · needs-redo
-consumes: ["data-repositories", "roster-screens", "attendance-screen", "feedback-screen", "quick-note-screen", "homework-screen", "parents-screen", "export-screen"]      # other module slugs / interfaces this module needs (use _shared/glossary.md terms)
+consumes: ["data-repositories", "motion-system", "roster-screens", "attendance-screen", "feedback-screen", "quick-note-screen", "homework-screen", "parents-screen", "export-screen"]      # other module slugs / interfaces this module needs (use _shared/glossary.md terms)
 produces: ["share-helpers", "app-theme"]      # what this module exposes to others (use _shared/glossary.md terms)
-build: built   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
-last-updated: 2026-10-21
+build: needs-rework   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
+last-updated: 2026-10-26
 ---
 
 # App shell
@@ -73,6 +73,7 @@ The shell's job is to make every other module's seam obvious, so the navigation 
 - The route table is this module's contract with itself: add every route string in wave 1, with argument parsing centralized in `nav/` — features must never receive a raw route, only typed values.
 - Do not add a settings/profile tab or extra bottom-bar items; four tabs only (README design rule 3).
 - Desugaring flag must stay on once dates ship — removing it later would crash every `java.time` call on older devices.
+- **2026-10-27 — motion landed (animations).** The 2026-10-21 tween pass is replaced by `modules/animations/` (spring tokens in `motion/Motion.kt`, `MotionNav`, `SharedMotionHost`, predictive back enabled). `theme/Motion.kt` replaced by `motion/`; do not extend the old tween/easing tokens.
 
 ## Build progress
 - **Owner:** `opencode` (lead+teammate). DONE 2026-10-21T00:09+05:30.

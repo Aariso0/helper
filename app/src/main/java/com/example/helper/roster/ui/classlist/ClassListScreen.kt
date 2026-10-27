@@ -44,6 +44,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -107,6 +109,9 @@ fun ClassListScreen(
             if (classes.isNotEmpty()) {
                 ExtendedFloatingActionButton(
                     onClick = { showCreateDialog = true },
+                    // The label is a child Text, not the button's own semantics;
+                    // without this the FAB is an unlabelled button to TalkBack.
+                    modifier = Modifier.semantics { contentDescription = "New class" },
                     icon = { Icon(Icons.Default.Add, contentDescription = null) },
                     text = { Text("New class") },
                 )
@@ -183,11 +188,12 @@ fun ClassListScreen(
             text = {
                 Text(
                     if (count == 0) {
-                        "This class has no students. Deleting it can’t be undone."
-                    } else {
-                        "This also deletes its $count student${if (count == 1) "" else "s"} " +
-                            "and everything recorded for them — attendance and notes. " +
+                        "This also deletes any exams recorded for this class. " +
                             "This can’t be undone."
+                    } else {
+                        "This also deletes its $count student${if (count == 1) "" else "s"}, " +
+                            "everything recorded for them — attendance, notes and exam marks — " +
+                            "and any exams recorded for the class. This can’t be undone."
                     }
                 )
             },

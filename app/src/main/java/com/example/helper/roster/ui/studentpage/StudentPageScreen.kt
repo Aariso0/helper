@@ -60,6 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.helper.coredata.entity.AttendanceStatus
+import com.example.helper.examsresults.ui.StudentExamHistory
 import com.example.helper.roster.viewmodel.studentPageViewModel
 import com.example.helper.roster.viewmodel.toDisplayDate
 import com.example.helper.studentfeedback.ui.FeedbackTimeline
@@ -68,8 +69,9 @@ import java.io.File
 /**
  * The student page (card: `roster-screens` → student page): photo, roll
  * number, parent contact, attendance % and history, plus the embedded
- * `feedback-timeline`. Typed params only — navigation lives in app-shell;
- * the quick-note button emits [onQuickNote] for app-shell to route.
+ * `exam history` (exams-results seam) and `feedback-timeline`. Typed params
+ * only — navigation lives in app-shell; the quick-note button emits
+ * [onQuickNote] for app-shell to route.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -357,6 +359,12 @@ fun StudentPageScreen(
                 }
             }
 
+            // --- Exam history (exams-results seam) ------------------------
+            Spacer(Modifier.height(24.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+            StudentExamHistory(studentId = studentId)
+
             // --- Feedback timeline (student-feedback seam) -----------------
             Spacer(Modifier.height(24.dp))
             HorizontalDivider()
@@ -393,7 +401,7 @@ fun StudentPageScreen(
             title = { Text("Delete ${student.name}?") },
             text = {
                 Text(
-                    "This also deletes their attendance and feedback notes. " +
+                    "This also deletes their attendance, feedback notes and exam marks. " +
                         "This can’t be undone."
                 )
             },

@@ -25,6 +25,13 @@ interface AnnouncementDao {
     @Query("SELECT * FROM announcement_templates ORDER BY (lastUsedAt IS NULL), lastUsedAt DESC, createdAt DESC")
     fun observeTemplates(): Flow<List<AnnouncementTemplate>>
 
+    /** An identical template (same name and message) — used to avoid duplicates. */
+    @Query(
+        "SELECT * FROM announcement_templates " +
+            "WHERE IFNULL(title, '') = IFNULL(:title, '') AND body = :body LIMIT 1",
+    )
+    suspend fun findTemplate(title: String?, body: String): AnnouncementTemplate?
+
     @Upsert
     suspend fun upsertTemplate(template: AnnouncementTemplate)
 

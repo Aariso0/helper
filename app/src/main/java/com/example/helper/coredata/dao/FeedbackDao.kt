@@ -17,6 +17,10 @@ interface FeedbackDao {
     @Query("SELECT COALESCE(MAX(sortOrder), 0) FROM feedback_tags")
     suspend fun maxSortOrder(): Int
 
+    /** Case-insensitive lookup so "Great day" never becomes two chips. */
+    @Query("SELECT * FROM feedback_tags WHERE label = :label COLLATE NOCASE LIMIT 1")
+    suspend fun findTagByLabel(label: String): FeedbackTag?
+
     @Query("UPDATE feedback_tags SET label = :label, updatedAt = :updatedAtMillis WHERE id = :id")
     suspend fun updateLabel(id: String, label: String, updatedAtMillis: Long)
 

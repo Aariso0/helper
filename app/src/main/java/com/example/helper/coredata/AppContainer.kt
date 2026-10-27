@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.helper.coredata.repository.AnnouncementRepository
 import com.example.helper.coredata.repository.AttendanceRepository
 import com.example.helper.coredata.repository.ContactLogRepository
+import com.example.helper.coredata.repository.ExamRepository
 import com.example.helper.coredata.repository.FeedbackRepository
 import com.example.helper.coredata.repository.HomeworkRepository
 import com.example.helper.coredata.repository.SchoolClassRepository
@@ -25,6 +26,7 @@ class AppContainer(private val context: Context) {
     val announcementRepository = AnnouncementRepository(database.announcementDao())
     val contactLogRepository = ContactLogRepository(database.contactLogDao())
     val homeworkRepository = HomeworkRepository(database.homeworkDao())
+    val examRepository = ExamRepository(database.examDao(), database.examSubjectDao(), database.examMarkDao())
 
     // ── `export-backup` seam (card setup step 2) ───────────────────────────
     // File-level backup needs exactly these three things and nothing else in

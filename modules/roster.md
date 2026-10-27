@@ -4,7 +4,7 @@ status: drafted   # planned · researching · drafted · needs-redo
 consumes: ["data-repositories", "feedback-timeline"]      # other module slugs / interfaces this module needs (use _shared/glossary.md terms)
 produces: ["class-student-picker", "photo-storage", "roster-screens"]      # what this module exposes to others (use _shared/glossary.md terms)
 build: built   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
-last-updated: 2026-10-20
+last-updated: 2026-10-28
 ---
 
 # Roster
@@ -101,4 +101,6 @@ Import is the module's riskiest decision, so it was decided against the client's
   3. Attendance/homework/parents consume `ClassPicker`/`StudentPicker` — no roster changes expected unless a seam complaint surfaces.
 - **Blocked on:** nothing.
 - **Handoff note:** Screens are typed-param composables only (`onOpenClass`/`onOpenStudent`/`onDone`/`onQuickNote`) — navigation stays in app-shell. The import VM is keyed `roster-import` and resets itself on dismiss/done, so re-entering the takeover always starts clean. All three main screens expose an explicit `loaded` flag — never infer "deleted" or "empty" from the pre-first-emission initial state (the student page will otherwise pop itself on first frame). `ClassPicker`/`StudentPicker` encapsulate repositories — consumers must not add their own data plumbing for picking. Roll numbers sort numerically when parseable; import dedup matches roll first, then name.
-- **Last checkpoint:** 2026-10-20T23:50:00+05:30
+- **Student page exam history (2026-10-28):** `ui/studentpage/StudentPageScreen.kt` now embeds `StudentExamHistory(studentId)` (exams-results seam, owns its ViewModel) between Attendance and Feedback — roster added no exam data plumbing. Exam rows in Exams & Results open this same page through app-shell's `Routes.student`, so there is one student page instead of a second detail screen.
+- **Delete access (2026-10-28):** student-list rows now carry an overflow `Delete` with a confirmation naming attendance, feedback notes and exam marks (the same action as the student page); the student page's copy now includes exam marks. Class deletion copy now names the exams and marks its cascade removes.
+- **Last checkpoint:** 2026-10-28T01:00:17+05:30

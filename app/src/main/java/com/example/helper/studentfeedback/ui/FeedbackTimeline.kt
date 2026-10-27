@@ -64,8 +64,7 @@ fun FeedbackTimeline(
         } else {
             // Deliberately no inner verticalScroll: the host student page already
             // scrolls, and a nested scrollable is measured with infinite height,
-            // which throws at measure time whenever notes exist — see
-            // chat/journal/21-10-2026.md ("timeline nested-scroll crash").
+            // which throws at measure time whenever notes exist (fixed 2026-10-21).
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 notes.forEach { note ->
                     Column {

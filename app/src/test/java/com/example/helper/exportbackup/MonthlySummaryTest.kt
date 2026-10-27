@@ -138,6 +138,23 @@ class MonthlySummaryTest {
     }
 
     @Test
+    fun `roll numbers sort as numbers, then text rolls, then unnumbered`() {
+        // 10 must follow 2 — text order would put it between 1 and 2.
+        val students = listOf(
+            Student(id = "s10", classId = "c1", name = "Zara", rollNumber = "10", createdAt = 0, updatedAt = 0),
+            Student(id = "s2", classId = "c1", name = "Bina", rollNumber = "1", createdAt = 0, updatedAt = 0),
+            Student(id = "s-a", classId = "c1", name = "Dev", rollNumber = "3-A", createdAt = 0, updatedAt = 0),
+            Student(id = "s1", classId = "c1", name = "Asha", rollNumber = "2", createdAt = 0, updatedAt = 0),
+            Student(id = "s-none", classId = "c1", name = "Chetan", createdAt = 0, updatedAt = 0),
+        )
+        val summary = buildMonthlySummary(2026, 9, listOf(classA), students, emptyList(), null)
+        assertEquals(
+            listOf("Bina", "Asha", "Zara", "Dev", "Chetan"),
+            summary.classes.single().students.map { it.studentName },
+        )
+    }
+
+    @Test
     fun `empty month reports no records`() {
         val summary = buildMonthlySummary(
             year = 2026,
