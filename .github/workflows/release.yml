@@ -58,8 +58,9 @@ jobs:
       - name: Verify APK signature
         run: |
           APK_PATH="app/build/outputs/apk/release/app-release.apk"
-          ${ANDROID_HOME}/build-tools/*/apksigner verify --verbose --print-certs "$APK_PATH"
-          ${ANDROID_HOME}/build-tools/*/aapt dump badging "$APK_PATH" | grep -E "package: name=|versionCode=|versionName="
+          BUILD_TOOLS_DIR=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -type d | sort -V | tail -n 1)
+          "$BUILD_TOOLS_DIR/apksigner" verify --verbose --print-certs "$APK_PATH"
+          "$BUILD_TOOLS_DIR/aapt" dump badging "$APK_PATH" | grep -E "package: name=|versionCode=|versionName="
 
       - name: Rename APK
         run: |
