@@ -3,7 +3,7 @@
 > **Status:** Build phase complete — 10 of 11 modules built. Local, on-device prototype.  
 > **Last updated:** 2026-10-28  
 > **Focus:** Fast, efficient, one-handed UI that beats Excel for daily classroom tasks.  
-> **Server / cloud:** Not built (v3 placeholder only). Fully offline. See [modules/server-comms.md](modules/server-comms.md) for future plans.
+> **Server / cloud:** Not built (v3 placeholder only). Fully offline. Future server integration is planned in [modules/server-comms.md](modules/server-comms.md) as a self-hostable option for school/local servers (no reliance on third-party cloud providers).
 
 ---
 
@@ -177,6 +177,20 @@ Required GitHub secrets for releases: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTO
 - **Secure signing** — Keystores excluded from Git, CI uses secrets securely
 - **Backup safety** — Restore is file-level with validation, never reuses DB after restore
 - **No PII in repo** — Student data, chat logs, and local configs are gitignored
+
+---
+
+## 9. Future: Self-Hostable Server Support
+
+Server connectivity is **not implemented** in the current prototype. However, the app is designed with a clear path for future expansion:
+
+- **Planned module:** [modules/server-comms.md](modules/server-comms.md) — Placeholder for v3 server integration
+- **Self-hostable:** The future backend is intended to run on local school servers (LAN) with no dependency on third-party cloud providers
+- **Offline-first remains** — Even with server support, the app will continue to work fully offline with local data
+- **Opt-in only** — Server features will be completely optional; the app remains functional as a standalone local app
+- **Data ownership** — Schools will retain full control of their data on their own infrastructure
+
+**Status:** `planned` — Not researched or built yet. Will only be implemented when explicitly opened for v3 development.
 
 ---
 
