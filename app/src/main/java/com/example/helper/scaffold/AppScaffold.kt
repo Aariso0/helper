@@ -1,7 +1,6 @@
 package com.example.helper.scaffold
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -22,15 +21,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.example.helper.nav.AppNavHost
 import com.example.helper.nav.Routes
 import com.example.helper.nav.navigateToTab
+import com.example.helper.nav.rememberNavThrottle
 import com.example.helper.motion.Motion
 
 /** Exactly the four README tabs — no settings, no profile, no extras (rule 3). */
@@ -54,6 +54,7 @@ fun AppScaffold() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    val throttle = rememberNavThrottle(350L)
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -72,13 +73,14 @@ fun AppScaffold() {
             ) {
                 NavigationBar {
                     tabs.forEach { tab ->
+                        val navigate = throttle {
+                            if (currentRoute != tab.route) {
+                                navController.navigateToTab(tab.route)
+                            }
+                        }
                         NavigationBarItem(
                             selected = currentRoute == tab.route,
-                            onClick = {
-                                if (currentRoute != tab.route) {
-                                    navController.navigateToTab(tab.route)
-                                }
-                            },
+                            onClick = navigate,
                             icon = { Icon(tab.icon, contentDescription = null) },
                             label = { Text(tab.label) },
                         )

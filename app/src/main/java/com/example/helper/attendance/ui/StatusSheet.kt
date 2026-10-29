@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.helper.coredata.entity.AttendanceStatus
+import com.example.helper.motion.rememberThrottledClick
 import com.example.helper.theme.ShellDimens
 
 /**
@@ -43,12 +44,14 @@ fun StatusSheet(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = ShellDimens.screenPadding, vertical = 8.dp),
         )
+        val throttle = rememberThrottledClick(300L)
         AttendanceStatus.entries.forEach { status ->
+            val onClick = throttle { onStatusChosen(status) }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = ShellDimens.rowMinHeight)
-                    .clickable { onStatusChosen(status) }
+                    .clickable(onClick = onClick)
                     .padding(horizontal = ShellDimens.screenPadding),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

@@ -80,8 +80,11 @@ object Routes {
  * stay alive under the back stack (saveState/restoreState), Back walks
  * the last-visited tab first (popUpTo start destination). */
 fun NavHostController.navigateToTab(route: String) {
+    if (currentDestination?.route == route) return
     navigate(route) {
-        popUpTo(Routes.TODAY) { saveState = true }
+        popUpTo(Routes.TODAY) {
+            saveState = true
+        }
         launchSingleTop = true
         restoreState = true
     }
