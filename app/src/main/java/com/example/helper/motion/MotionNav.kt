@@ -19,8 +19,10 @@ object MotionNav {
         to: NavBackStackEntry,
     ): EnterTransition {
         return if (isTabRoot(from) && isTabRoot(to)) {
-            // fade-through
-            fadeIn(Motion.Effects.Fast)
+            slideInHorizontally(
+                animationSpec = Motion.Spatial.FastOffset,
+                initialOffsetX = { fullWidth -> (fullWidth * 0.3f).toInt() },
+            ) + fadeIn(Motion.Effects.Fast)
         } else {
             slideInHorizontally(
                 animationSpec = Motion.Spatial.FastOffset,
@@ -35,7 +37,10 @@ object MotionNav {
         to: NavBackStackEntry,
     ): ExitTransition {
         return if (isTabRoot(from) && isTabRoot(to)) {
-            fadeOut(Motion.Effects.Fast)
+            slideOutHorizontally(
+                animationSpec = Motion.Spatial.FastOffset,
+                targetOffsetX = { fullWidth -> -(fullWidth * 0.3f).toInt() },
+            ) + fadeOut(Motion.Effects.Fast)
         } else {
             slideOutHorizontally(
                 animationSpec = Motion.Spatial.FastOffset,
@@ -49,14 +54,10 @@ object MotionNav {
         from: NavBackStackEntry,
         to: NavBackStackEntry,
     ): EnterTransition {
-        return if (isTabRoot(from) && isTabRoot(to)) {
-            fadeIn(Motion.Effects.Fast)
-        } else {
-            slideInHorizontally(
-                animationSpec = Motion.Spatial.FastOffset,
-                initialOffsetX = { fullWidth -> -(fullWidth * 0.3f).toInt() },
-            ) + fadeIn(Motion.Effects.Fast)
-        }
+        return slideInHorizontally(
+            animationSpec = Motion.Spatial.FastOffset,
+            initialOffsetX = { fullWidth -> -(fullWidth * 0.3f).toInt() },
+        ) + fadeIn(Motion.Effects.Fast)
     }
 
     fun popExit(
@@ -64,14 +65,10 @@ object MotionNav {
         from: NavBackStackEntry,
         to: NavBackStackEntry,
     ): ExitTransition {
-        return if (isTabRoot(from) && isTabRoot(to)) {
-            fadeOut(Motion.Effects.Fast)
-        } else {
-            slideOutHorizontally(
-                animationSpec = Motion.Spatial.DefaultOffset,
-                targetOffsetX = { fullWidth -> (fullWidth * 0.3f).toInt() },
-            ) + fadeOut(Motion.Effects.Default)
-        }
+        return slideOutHorizontally(
+            animationSpec = Motion.Spatial.FastOffset,
+            targetOffsetX = { fullWidth -> (fullWidth * 0.3f).toInt() },
+        ) + fadeOut(Motion.Effects.Fast)
     }
 }
 

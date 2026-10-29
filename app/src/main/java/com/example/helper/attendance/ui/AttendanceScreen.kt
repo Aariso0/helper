@@ -55,7 +55,12 @@ import com.example.helper.attendance.viewmodel.AttendanceViewModel.Counters
 import com.example.helper.attendance.viewmodel.attendanceViewModel
 import com.example.helper.coredata.entity.AttendanceStatus
 import com.example.helper.coredata.entity.Student
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import com.example.helper.share.shareText
 import com.example.helper.motion.Motion
 import com.example.helper.theme.ShellDimens
@@ -233,16 +238,22 @@ fun AttendanceScreen(
             ) {
                 if (visibleStudents.isEmpty()) {
                     item {
-                        Text(
-                            text = if (query.isBlank()) {
-                                "No students in this class yet"
-                            } else {
-                                "No students match “$query”"
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(ShellDimens.screenPadding),
-                        )
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(Motion.Effects.Default) + slideInVertically(Motion.Spatial.FastOffset) { it / 4 },
+                            exit = fadeOut(Motion.Effects.Default) + slideOutVertically(Motion.Spatial.FastOffset) { it / 4 },
+                        ) {
+                            Text(
+                                text = if (query.isBlank()) {
+                                    "No students in this class yet"
+                                } else {
+                                    "No students match “$query”"
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(ShellDimens.screenPadding),
+                            )
+                        }
                     }
                 }
                 itemsIndexed(visibleStudents, key = { _, student -> student.id }) { index, student ->

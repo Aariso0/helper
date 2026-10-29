@@ -61,6 +61,25 @@ android {
     }
 
     buildTypes {
+        debug {
+            val keystorePath = signingValue("ANDROID_KEYSTORE_PATH", "storeFile")
+            val keystorePassword = signingValue("ANDROID_KEYSTORE_PASSWORD", "storePassword")
+            val keyAliasValue = signingValue("ANDROID_KEY_ALIAS", "keyAlias")
+            val keyPasswordValue = signingValue("ANDROID_KEY_PASSWORD", "keyPassword")
+
+            val signingValuesPresent =
+                keystorePath != null &&
+                    keystorePassword != null &&
+                    keyAliasValue != null &&
+                    keyPasswordValue != null
+
+            if (signingValuesPresent) {
+                val keystoreFile = file(keystorePath!!)
+                if (keystoreFile.isFile) {
+                    signingConfig = signingConfigs.getByName("release")
+                }
+            }
+        }
         release {
             val keystorePath = signingValue("ANDROID_KEYSTORE_PATH", "storeFile")
             val keystorePassword = signingValue("ANDROID_KEYSTORE_PASSWORD", "storePassword")
@@ -69,9 +88,9 @@ android {
 
             val signingValuesPresent =
                 keystorePath != null &&
-                        keystorePassword != null &&
-                        keyAliasValue != null &&
-                        keyPasswordValue != null
+                    keystorePassword != null &&
+                    keyAliasValue != null &&
+                    keyPasswordValue != null
 
             if (signingValuesPresent) {
                 val keystoreFile = file(keystorePath!!)
@@ -86,14 +105,14 @@ android {
             } else if (
                 gradle.startParameter.taskNames.any {
                     it.contains("Release", ignoreCase = true) &&
-                            !it.contains("UnitTest", ignoreCase = true) &&
-                            !it.contains("Lint", ignoreCase = true)
+                        !it.contains("UnitTest", ignoreCase = true) &&
+                        !it.contains("Lint", ignoreCase = true)
                 }
             ) {
                 throw GradleException(
                     "Release signing requires either the four ANDROID_KEYSTORE_* " +
-                            "environment variables (ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD " +
-                            "included), or all four values in keystore.properties."
+                        "environment variables (ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD " +
+                        "included), or all four values in keystore.properties."
                 )
             }
 

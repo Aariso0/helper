@@ -1,5 +1,10 @@
 package com.example.helper.examsresults.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -38,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.helper.examsresults.viewmodel.ExamListViewModel
 import com.example.helper.examsresults.viewmodel.ExamWithClass
+import com.example.helper.motion.Motion
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -86,13 +92,19 @@ fun ExamListScreen(
             }
             if (state.exams.isEmpty()) {
                 item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(Motion.Effects.Default) + slideInVertically(Motion.Spatial.FastOffset) { it / 4 },
+                        exit = fadeOut(Motion.Effects.Default),
                     ) {
-                        Text("No exams yet", style = MaterialTheme.typography.bodyLarge)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text("No exams yet", style = MaterialTheme.typography.bodyLarge)
+                        }
                     }
                 }
             }
