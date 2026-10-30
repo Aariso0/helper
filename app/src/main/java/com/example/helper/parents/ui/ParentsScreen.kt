@@ -52,6 +52,7 @@ import com.example.helper.parents.viewmodel.ParentsViewModel.EntryItem
 import com.example.helper.parents.viewmodel.announcementText
 import com.example.helper.parents.viewmodel.parentsViewModel
 import com.example.helper.roster.picker.StudentPicker
+import com.example.helper.motion.ScreenTakeover
 import com.example.helper.share.shareText
 import com.example.helper.theme.ShellDimens
 
@@ -87,14 +88,8 @@ fun ParentsScreen() {
         }
     }
 
-    if (showAnnouncementEdit) {
-        AnnouncementEdit(
-            onDone = { showAnnouncementEdit = false },
-            onNotice = { pendingMessage = it },
-        )
-        return
-    }
-
+    // The compose flow slides over the list and back out to the right, the
+    // same left-to-right motion as a route pop — the list keeps its scroll.
     if (showStudentPicker) {
         StudentPicker(
             classId = null,
@@ -142,107 +137,118 @@ fun ParentsScreen() {
         )
     }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Parents") }) },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showAnnouncementEdit = true },
-                modifier = Modifier.semantics { contentDescription = "New announcement" },
-                icon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                text = { Text("New announcement") },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { innerPadding ->
-        when {
-            state.loading -> Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) { CircularProgressIndicator() }
+    ScreenTakeover(
+        visible = showAnnouncementEdit,
+        base = {
+        Scaffold(
+            topBar = { TopAppBar(title = { Text("Parents") }) },
+            floatingActionButton = {
+                ExtendedFloatingActionButton(
+                    onClick = { showAnnouncementEdit = true },
+                    modifier = Modifier.semantics { contentDescription = "New announcement" },
+                    icon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                    text = { Text("New announcement") },
+                )
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+        ) { innerPadding ->
+            when {
+                state.loading -> Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center,
+                ) { CircularProgressIndicator() }
 
-            else -> LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(vertical = 8.dp),
-            ) {
-                // ── Announcements ────────────────────────────────────────
-                item(key = "header-announcements") {
-                    SectionHeader(
-                        title = "Announcements",
-                        count = state.announcements.size,
-                        countLabel = if (state.announcements.size == 1) "1 shared" else "${state.announcements.size} shared",
-                    )
-                }
-                if (state.announcements.isEmpty()) {
-                    item(key = "empty-announcements") {
-                        EmptyHint(
-                            text = "No announcements yet — compose one and share it " +
-                                "to any parent group through WhatsApp, email, or " +
-                                "anything else you use.",
+                else -> LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                ) {
+                    // ── Announcements ────────────────────────────────────────
+                    item(key = "header-announcements") {
+                        SectionHeader(
+                            title = "Announcements",
+                            count = state.announcements.size,
+                            countLabel = if (state.announcements.size == 1) "1 shared" else "${state.announcements.size} shared",
                         )
                     }
-                } else {
-                    items(state.announcements.take(ANNOUNCEMENT_LIMIT), key = { it.announcement.id }) { item ->
-                        AnnouncementRow(
-                            item = item,
-                            onClick = {
-                                val announcement = item.announcement
-                                val ok = shareText(
-                                    context = context,
-                                    text = announcementText(announcement.title, announcement.body),
-                                    subject = announcement.title?.trim().orEmpty()
-                                        .ifEmpty { "Announcement" },
-                                )
-                                if (!ok) pendingMessage = "No app available to handle sharing"
-                            },
-                            onDelete = { announcementToDelete = item.announcement },
-                        )
-                    }
-                    if (state.announcements.size > ANNOUNCEMENT_LIMIT) {
-                        item(key = "more-announcements") {
-                            HonestyLine("Showing last $ANNOUNCEMENT_LIMIT of ${state.announcements.size}")
+                    if (state.announcements.isEmpty()) {
+                        item(key = "empty-announcements") {
+                            EmptyHint(
+                                text = "No announcements yet — compose one and share it " +
+                                    "to any parent group through WhatsApp, email, or " +
+                                    "anything else you use.",
+                            )
+                        }
+                    } else {
+                        items(state.announcements.take(ANNOUNCEMENT_LIMIT), key = { it.announcement.id }) { item ->
+                            AnnouncementRow(
+                                item = item,
+                                onClick = {
+                                    val announcement = item.announcement
+                                    val ok = shareText(
+                                        context = context,
+                                        text = announcementText(announcement.title, announcement.body),
+                                        subject = announcement.title?.trim().orEmpty()
+                                            .ifEmpty { "Announcement" },
+                                    )
+                                    if (!ok) pendingMessage = "No app available to handle sharing"
+                                },
+                                onDelete = { announcementToDelete = item.announcement },
+                            )
+                        }
+                        if (state.announcements.size > ANNOUNCEMENT_LIMIT) {
+                            item(key = "more-announcements") {
+                                HonestyLine("Showing last $ANNOUNCEMENT_LIMIT of ${state.announcements.size}")
+                            }
                         }
                     }
-                }
 
-                // ── Contact log ──────────────────────────────────────────
-                item(key = "header-contacts") {
-                    SectionHeader(
-                        title = "Parent contact log",
-                        count = state.entries.size,
-                        countLabel = if (state.entries.size == 1) "1 logged" else "${state.entries.size} logged",
-                        actionLabel = "Log a contact",
-                        onAction = { showStudentPicker = true },
-                    )
-                }
-                if (state.entries.isEmpty()) {
-                    item(key = "empty-contacts") {
-                        EmptyHint(
-                            text = "No parent contacts logged yet — when a parent " +
-                                "calls or messages you, log it here for later reference.",
+                    // ── Contact log ──────────────────────────────────────────
+                    item(key = "header-contacts") {
+                        SectionHeader(
+                            title = "Parent contact log",
+                            count = state.entries.size,
+                            countLabel = if (state.entries.size == 1) "1 logged" else "${state.entries.size} logged",
+                            actionLabel = "Log a contact",
+                            onAction = { showStudentPicker = true },
                         )
                     }
-                } else {
-                    items(state.entries.take(ENTRY_LIMIT), key = { it.entry.id }) { item ->
-                        ContactEntryRow(
-                            item = item,
-                            onDelete = { entryToDelete = item.entry },
-                        )
-                    }
-                    if (state.entries.size > ENTRY_LIMIT) {
-                        item(key = "more-contacts") {
-                            HonestyLine("Showing last $ENTRY_LIMIT of ${state.entries.size}")
+                    if (state.entries.isEmpty()) {
+                        item(key = "empty-contacts") {
+                            EmptyHint(
+                                text = "No parent contacts logged yet — when a parent " +
+                                    "calls or messages you, log it here for later reference.",
+                            )
+                        }
+                    } else {
+                        items(state.entries.take(ENTRY_LIMIT), key = { it.entry.id }) { item ->
+                            ContactEntryRow(
+                                item = item,
+                                onDelete = { entryToDelete = item.entry },
+                            )
+                        }
+                        if (state.entries.size > ENTRY_LIMIT) {
+                            item(key = "more-contacts") {
+                                HonestyLine("Showing last $ENTRY_LIMIT of ${state.entries.size}")
+                            }
                         }
                     }
-                }
 
-                item { Spacer(Modifier.height(72.dp)) } // FAB clearance
+                    item { Spacer(Modifier.height(72.dp)) } // FAB clearance
+                }
             }
         }
-    }
+        },
+        overlay = {
+            AnnouncementEdit(
+                onDone = { showAnnouncementEdit = false },
+                onNotice = { pendingMessage = it },
+            )
+        },
+    )
 }
 
 @Composable

@@ -18,17 +18,10 @@ object MotionNav {
         from: NavBackStackEntry,
         to: NavBackStackEntry,
     ): EnterTransition {
-        return if (isTabRoot(from) && isTabRoot(to)) {
-            slideInHorizontally(
-                animationSpec = Motion.Spatial.FastOffset,
-                initialOffsetX = { fullWidth -> (fullWidth * 0.3f).toInt() },
-            ) + fadeIn(Motion.Effects.Fast)
-        } else {
-            slideInHorizontally(
-                animationSpec = Motion.Spatial.FastOffset,
-                initialOffsetX = { fullWidth -> (fullWidth * 0.3f).toInt() },
-            ) + fadeIn(Motion.Effects.Fast)
-        }
+        return slideInHorizontally(
+            animationSpec = Motion.Spatial.FastOffset,
+            initialOffsetX = { fullWidth -> (fullWidth * 0.3f).toInt() },
+        ) + fadeIn(Motion.Effects.Fast)
     }
 
     fun exit(
@@ -36,17 +29,10 @@ object MotionNav {
         from: NavBackStackEntry,
         to: NavBackStackEntry,
     ): ExitTransition {
-        return if (isTabRoot(from) && isTabRoot(to)) {
-            slideOutHorizontally(
-                animationSpec = Motion.Spatial.FastOffset,
-                targetOffsetX = { fullWidth -> -(fullWidth * 0.3f).toInt() },
-            ) + fadeOut(Motion.Effects.Fast)
-        } else {
-            slideOutHorizontally(
-                animationSpec = Motion.Spatial.FastOffset,
-                targetOffsetX = { fullWidth -> -(fullWidth * 0.3f).toInt() },
-            ) + fadeOut(Motion.Effects.Fast)
-        }
+        return slideOutHorizontally(
+            animationSpec = Motion.Spatial.FastOffset,
+            targetOffsetX = { fullWidth -> -(fullWidth * 0.3f).toInt() },
+        ) + fadeOut(Motion.Effects.Fast)
     }
 
     fun popEnter(

@@ -66,6 +66,10 @@ object Routes {
     fun examMarkEntry(examId: String, classId: String, subjectId: String) =
         "exam/$examId/class/$classId/marks/$subjectId"
 
+    /** Formula columns for the results sheet (same sheet, not a worksheet). */
+    const val EXAM_COLUMNS = "exam/{examId}/columns"
+    fun examColumns(examId: String) = "exam/$examId/columns"
+
     // ── Argument names + parsing (NavHost-only) ───────────────────────────
     object Args {
         const val CLASS_ID = "classId"
@@ -78,9 +82,16 @@ object Routes {
 
 /** Tab-safe navigate: one instance per tab (launchSingleTop), tab roots
  * stay alive under the back stack (saveState/restoreState), Back walks
- * the last-visited tab first (popUpTo start destination). */
+ * the last-visited tab first (popUpTo start destination).
+ *
+ * Returning to a tab that is already on the back stack (Today always is)
+ * is done with [NavHostController.popBackStack], not [navigate]: a pop plays
+ * the left-to-right back transition, while a navigate would push the tab in
+ * from the right even though it is a step backwards.
+ */
 fun NavHostController.navigateToTab(route: String) {
     if (currentDestination?.route == route) return
+    if (popBackStack(route, inclusive = false, saveState = true)) return
     navigate(route) {
         popUpTo(Routes.TODAY) {
             saveState = true

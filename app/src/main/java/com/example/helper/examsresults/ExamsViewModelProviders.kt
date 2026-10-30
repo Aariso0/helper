@@ -9,6 +9,7 @@ import com.example.helper.HelperApplication
 import com.example.helper.examsresults.viewmodel.ExamListViewModel
 import com.example.helper.examsresults.viewmodel.ExamResultViewModel
 import com.example.helper.examsresults.viewmodel.ExamSetupViewModel
+import com.example.helper.examsresults.viewmodel.ExportColumnsViewModel
 import com.example.helper.examsresults.viewmodel.MarkEntryViewModel
 import com.example.helper.examsresults.viewmodel.StudentExamHistoryViewModel
 
@@ -40,7 +41,25 @@ fun markEntryViewModel(examId: String, classId: String, subjectId: String): Mark
 fun examResultViewModel(examId: String, classId: String): ExamResultViewModel {
     val app = LocalContext.current.applicationContext as HelperApplication
     return viewModel(key = "exam-result-$examId-$classId") {
-        ExamResultViewModel(examId, app.container.examRepository, app.container.studentRepository, classId)
+        ExamResultViewModel(
+            examId,
+            app.container.examRepository,
+            app.container.studentRepository,
+            classId,
+            app.container.exportColumnRepository,
+        )
+    }
+}
+
+@Composable
+fun exportColumnsViewModel(examId: String): ExportColumnsViewModel {
+    val app = LocalContext.current.applicationContext as HelperApplication
+    return viewModel(key = "export-columns-$examId") {
+        ExportColumnsViewModel(
+            examId = examId,
+            examRepository = app.container.examRepository,
+            exportColumnRepository = app.container.exportColumnRepository,
+        )
     }
 }
 

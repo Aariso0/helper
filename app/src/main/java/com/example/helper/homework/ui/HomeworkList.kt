@@ -47,6 +47,7 @@ import com.example.helper.homework.viewmodel.HomeworkListViewModel
 import com.example.helper.homework.viewmodel.SharePayload
 import com.example.helper.homework.viewmodel.homeworkListViewModel
 import com.example.helper.homework.viewmodel.homeworkEditViewModel
+import com.example.helper.motion.ScreenTakeover
 import com.example.helper.share.asShareableUri
 import com.example.helper.share.shareFiles
 import com.example.helper.share.shareText
@@ -82,73 +83,77 @@ fun HomeworkScreen(
     }
 
     // The edit takeover owns its own back handling (discard-on-back lives
-    // with the draft lifecycle in HomeworkEdit).
-    if (showEdit) {
-        HomeworkEdit(
-            viewModel = editViewModel,
-            onDone = { showEdit = false },
-            onNotice = { pendingMessage = it },
-        )
-        return
-    }
+    // with the draft lifecycle in HomeworkEdit). It slides over the list and
+    // back out to the right, matching a route pop.
+    ScreenTakeover(
+        visible = showEdit,
+        base = {
+            Scaffold(
+                topBar = { TopAppBar(title = { Text("Homework") }) },
+                floatingActionButton = {
+                    ExtendedFloatingActionButton(
+                        onClick = { showEdit = true },
+                        modifier = Modifier.semantics { contentDescription = "New homework" },
+                        icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                        text = { Text("New homework") },
+                    )
+                },
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+            ) { innerPadding ->
+                when {
+                    state.loading -> Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                        contentAlignment = Alignment.Center,
+                    ) { CircularProgressIndicator() }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Homework") }) },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showEdit = true },
-                modifier = Modifier.semantics { contentDescription = "New homework" },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("New homework") },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { innerPadding ->
-        when {
-            state.loading -> Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) { CircularProgressIndicator() }
+                    state.sections.isEmpty() -> EmptyHomework(
+                        onCompose = { showEdit = true },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                    )
 
-            state.sections.isEmpty() -> EmptyHomework(
-                onCompose = { showEdit = true },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            )
-
-            else -> LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(vertical = 8.dp),
-            ) {
-                state.sections.forEach { section ->
-                    item(key = "header-${section.classId}") {
-                        ClassHeader(
-                            className = section.className,
-                            count = section.items.size,
-                            onClick = { onOpenClass(section.classId) },
-                        )
-                    }
-                    items(section.items, key = { it.hw.homework.id }) { item ->
-                        HomeworkRow(
-                            item = item,
-                            onClick = {
-                                val payload = listViewModel.sharePayloadFor(item, section.className)
-                                if (!sharePayload(context, payload)) {
-                                    pendingMessage = "No app available to handle sharing"
-                                }
-                            },
-                        )
+                    else -> LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                    ) {
+                        state.sections.forEach { section ->
+                            item(key = "header-${section.classId}") {
+                                ClassHeader(
+                                    className = section.className,
+                                    count = section.items.size,
+                                    onClick = { onOpenClass(section.classId) },
+                                )
+                            }
+                            items(section.items, key = { it.hw.homework.id }) { item ->
+                                HomeworkRow(
+                                    item = item,
+                                    onClick = {
+                                        val payload = listViewModel.sharePayloadFor(item, section.className)
+                                        if (!sharePayload(context, payload)) {
+                                            pendingMessage = "No app available to handle sharing"
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                        item { Spacer(Modifier.height(72.dp)) } // FAB clearance
                     }
                 }
-                item { Spacer(Modifier.height(72.dp)) } // FAB clearance
             }
-        }
-    }
+        },
+        overlay = {
+            HomeworkEdit(
+                viewModel = editViewModel,
+                onDone = { showEdit = false },
+                onNotice = { pendingMessage = it },
+            )
+        },
+    )
 }
 
 /**

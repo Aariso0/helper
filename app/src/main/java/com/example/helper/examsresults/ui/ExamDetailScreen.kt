@@ -45,6 +45,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.helper.coredata.entity.ExamSubject
 import com.example.helper.examsresults.export.ExamExcelWriter
+import com.example.helper.examsresults.export.ExportFormulaEngine
 import com.example.helper.examsresults.viewmodel.ExamResultViewModel
 import com.example.helper.examsresults.viewmodel.ExportConfig
 import com.example.helper.share.asShareableUri
@@ -61,18 +62,54 @@ fun ExamDetailScreen(
     onEnterMarks: (subjectId: String) -> Unit,
     onStudentClick: (studentId: String) -> Unit,
     onExamDeleted: () -> Unit,
+    onConfigureColumns: () -> Unit,
     onBack: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
-    val exportConfig by viewModel.exportConfig.collectAsState()
     val context = LocalContext.current
-    var showExportDialog by remember { mutableStateOf(false) }
     var showSubjectPicker by remember { mutableStateOf(false) }
     var showAddSubject by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     var showDeleteExam by remember { mutableStateOf(false) }
+    var exportError by remember { mutableStateOf<String?>(null) }
     var subjectBeingDeleted by remember { mutableStateOf<ExamSubject?>(null) }
     var subjectBeingEdited by remember { mutableStateOf<ExamSubject?>(null) }
+
+    // PASS is always green and FAIL always red — no colour question before an
+    // export; the two colours are the sheet's defaults. The formula columns
+    // come from the teacher's saved layout and are validated before writing.
+    val exportToExcel = {
+        val activeColumns = state.exportColumns.filter { it.enabled }
+        val issues = ExportFormulaEngine.validate(activeColumns, state.subjects)
+        if (issues.isNotEmpty()) {
+            exportError = issues.joinToString("\n") { "${it.columnLabel}: ${it.message}" }
+        } else {
+            CoroutineScope(Dispatchers.Main).launch {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        ExamExcelWriter.write(
+                            context = context,
+                            examName = state.examName,
+                            subjects = state.subjects,
+                            results = state.results,
+                            config = ExportConfig(),
+                            columns = activeColumns,
+                        )
+                    }
+                }.onSuccess { file ->
+                    val uri = file.asShareableUri(context)
+                    shareFiles(
+                        context,
+                        listOf(uri),
+                        mimeTypes = listOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                    )
+                }.onFailure { error ->
+                    exportError = error.message ?: "Could not export the sheet."
+                }
+            }
+        }
+        Unit
+    }
 
     Scaffold(
         topBar = {
@@ -84,13 +121,20 @@ fun ExamDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showExportDialog = true }) {
+                    IconButton(onClick = exportToExcel) {
                         Icon(Icons.Filled.Share, contentDescription = "Export")
                     }
                     IconButton(onClick = { menuOpen = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "More options")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Export columns") },
+                            onClick = {
+                                menuOpen = false
+                                onConfigureColumns()
+                            },
+                        )
                         DropdownMenuItem(
                             text = {
                                 Text(
@@ -128,9 +172,24 @@ fun ExamDetailScreen(
                 ) {
                     Text("Enter Marks")
                 }
-                OutlinedButton(onClick = { showExportDialog = true }, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = exportToExcel, modifier = Modifier.weight(1f)) {
                     Text("Export to Excel")
                 }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onConfigureColumns) {
+                    Text("Export columns")
+                }
+                Text(
+                    "Total, PASS/FAIL, percentage or your own formula",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             HorizontalDivider()
 
@@ -323,27 +382,22 @@ fun ExamDetailScreen(
         )
     }
 
-    if (showExportDialog) {
-        ExportConfigDialog(
-            config = exportConfig,
-            onConfigChange = viewModel::updateExportConfig,
-            onExport = {
-                showExportDialog = false
-                CoroutineScope(Dispatchers.Main).launch {
-                    val file = withContext(Dispatchers.IO) {
-                        ExamExcelWriter.write(
-                            context = context,
-                            examName = state.examName,
-                            subjects = state.subjects,
-                            results = state.results,
-                            config = exportConfig,
-                        )
-                    }
-                    val uri = file.asShareableUri(context)
-                    shareFiles(context, listOf(uri), mimeTypes = listOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                }
+    exportError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { exportError = null },
+            title = { Text("Couldn’t export") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        exportError = null
+                        onConfigureColumns()
+                    },
+                ) { Text("Column settings") }
             },
-            onDismiss = { showExportDialog = false },
+            dismissButton = {
+                TextButton(onClick = { exportError = null }) { Text("Close") }
+            },
         )
     }
 }

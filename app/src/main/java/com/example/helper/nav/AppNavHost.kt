@@ -23,7 +23,9 @@ import com.example.helper.examsresults.markEntryViewModel
 import com.example.helper.examsresults.ui.ExamDetailScreen
 import com.example.helper.examsresults.ui.ExamListScreen
 import com.example.helper.examsresults.ui.ExamSetupScreen
+import com.example.helper.examsresults.ui.ExportColumnsScreen
 import com.example.helper.examsresults.ui.MarkEntryScreen
+import com.example.helper.examsresults.exportColumnsViewModel
 import com.example.helper.homework.ui.HomeworkScreen
 import com.example.helper.motion.MotionNav
 import com.example.helper.motion.SharedMotionHost
@@ -214,6 +216,17 @@ fun AppNavHost(
                     navController.navigate(Routes.student(studentId))
                 },
                 onExamDeleted = { navController.popBackStack() },
+                onConfigureColumns = { navController.navigate(Routes.examColumns(examId)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.EXAM_COLUMNS,
+            arguments = listOf(navArgument(Routes.Args.EXAM_ID) { type = NavType.StringType }),
+        ) { entry ->
+            val examId = entry.arguments?.getString(Routes.Args.EXAM_ID) ?: return@composable
+            ExportColumnsScreen(
+                viewModel = exportColumnsViewModel(examId),
                 onBack = { navController.popBackStack() },
             )
         }
