@@ -1,6 +1,5 @@
 package com.example.helper.parents.ui
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -24,11 +23,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.helper.coredata.entity.AnnouncementTemplate
-import com.example.helper.motion.Motion
 import com.example.helper.scaffold.onLongPress
 
 /**
@@ -68,16 +65,13 @@ fun TemplateChipRow(
         templates.forEach { template ->
             // Same fix as feedback's TagChipRow: the long-press sits on the
             // chip's own modifier, because a wrapper around the chip never
-            // received the press.
-            val scale by animateFloatAsState(1f, Motion.Spatial.Pop, label = "tmplScale")
+            // received the press. The chip's own ripple is the tap feedback —
+            // a scale here would need its own trigger and would double the
+            // press state on a chip that is not selectable.
             FilterChip(
                 selected = false,
                 onClick = { onApply(template) },
                 modifier = Modifier
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                    }
                     .onLongPress { templateBeingEdited = template },
                 label = {
                     Text(

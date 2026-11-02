@@ -26,14 +26,9 @@ data class ExamResultUiState(
 )
 
 /**
- * The two outcome colours in the export. They are fixed defaults (PASS green,
- * FAIL red) — the teacher is never asked to pick them.
+ * The export needs no colour choice: a passed row stays plain and a failed
+ * row is bold italic, both applied by the sheet's own conditional rule.
  */
-data class ExportConfig(
-    val passColor: Long = 0xFF4CAF50,
-    val failColor: Long = 0xFFF44336,
-)
-
 class ExamResultViewModel(
     private val examId: String,
     private val examRepository: ExamRepository,

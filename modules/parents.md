@@ -89,4 +89,5 @@ Every delivery path in this module is manual by design because parent access its
 - **Remaining:** on-device QA (no device/emulator here): template overwrite confirm, PDF share via share sheet on a real device, clipboard behavior on API 33+, backdate picker, delete confirms.
 - **Blocked on:** nothing.
 - **Handoff note:** `exports/` is now shared between parents (announcement PDFs) and the future export-backup module — sweep ownership belongs to export-backup (pdfstore KDoc says so). PDFs are derivable artifacts: the Announcement row is the source of truth, abandon deletes the row only. No new dependencies; no `file_paths.xml` change; no internet permission. Template delete never touches Announcement rows (repository enforces; card build note honored). `StaticLayout.Builder.setIncludeFontPadding` does not exist on the current compile SDK — removed, default applies.
-- **Last checkpoint:** 2026-10-21 (DONE)
+- **Bottom bar above 3-button navigation (2026-11-01):** `AnnouncementEdit`'s Share bar is a custom `bottomBar`, which `Scaffold` does not inset, so the Share button sat under the system navigation row. `Modifier.navigationBarsPadding()` on the button lifts it clear.
+- **Last checkpoint:** 2026-10-21 (DONE; bottom-bar inset added 2026-11-01, gate green)

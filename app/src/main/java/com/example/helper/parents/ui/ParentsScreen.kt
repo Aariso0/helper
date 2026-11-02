@@ -52,6 +52,7 @@ import com.example.helper.parents.viewmodel.ParentsViewModel.EntryItem
 import com.example.helper.parents.viewmodel.announcementText
 import com.example.helper.parents.viewmodel.parentsViewModel
 import com.example.helper.roster.picker.StudentPicker
+import com.example.helper.motion.Motion
 import com.example.helper.motion.ScreenTakeover
 import com.example.helper.share.shareText
 import com.example.helper.theme.ShellDimens
@@ -186,6 +187,14 @@ fun ParentsScreen() {
                         items(state.announcements.take(ANNOUNCEMENT_LIMIT), key = { it.announcement.id }) { item ->
                             AnnouncementRow(
                                 item = item,
+                                // Newest lands at the top while this list stays
+                                // composed (the composer is a takeover), so the
+                                // rows below slide down instead of teleporting.
+                                modifier = Modifier.animateItem(
+                                    placementSpec = Motion.Spatial.DefaultOffset,
+                                    fadeInSpec = Motion.Effects.Fast,
+                                    fadeOutSpec = Motion.Effects.Fast,
+                                ),
                                 onClick = {
                                     val announcement = item.announcement
                                     val ok = shareText(
@@ -227,6 +236,11 @@ fun ParentsScreen() {
                         items(state.entries.take(ENTRY_LIMIT), key = { it.entry.id }) { item ->
                             ContactEntryRow(
                                 item = item,
+                                modifier = Modifier.animateItem(
+                                    placementSpec = Motion.Spatial.DefaultOffset,
+                                    fadeInSpec = Motion.Effects.Fast,
+                                    fadeOutSpec = Motion.Effects.Fast,
+                                ),
                                 onDelete = { entryToDelete = item.entry },
                             )
                         }
@@ -292,11 +306,12 @@ private fun AnnouncementRow(
     item: AnnouncementItem,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(start = ShellDimens.screenPadding, end = 4.dp)
@@ -344,11 +359,12 @@ private fun AnnouncementRow(
 private fun ContactEntryRow(
     item: EntryItem,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(start = ShellDimens.screenPadding, end = 4.dp)
             .padding(vertical = 8.dp),

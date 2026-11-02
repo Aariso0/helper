@@ -13,28 +13,32 @@ import java.util.zip.ZipOutputStream
  * range opens on an "empty" grid.
  *
  * The workbook is a zip, so after [com.gyanoba.kexcel.Excel.encode] returns we
- * rewrite the one sheet part with the real extent, read back from the cells
+ * rewrite every worksheet part with the real extent, read back from the cells
  * that are actually there. Nothing else in the archive changes; this is a
  * post-process, not a fork of the library (the card's stack stays as chosen).
  */
 internal object XlsxDimension {
 
-    private const val SHEET_PART = "xl/worksheets/sheet1.xml"
+    private val SHEET_PART = Regex("""xl/worksheets/sheet\d+\.xml""")
     private const val DIMENSION_OPEN = "<dimension"
 
     private val DIMENSION_ELEMENT = Regex("""<dimension\s+ref="[^"]*"\s*/>""")
     private val ROW = Regex("""<row[^>]*\sr="(\d+)"""")
     private val CELL = Regex("""<c[^>]*\sr="([A-Z]+)(\d+)"""")
 
-    /** Returns [workbook] with the first sheet's `<dimension>` corrected. */
+    /** Returns [workbook] with the `<dimension>` of every sheet corrected. */
     fun patch(workbook: ByteArray): ByteArray {
         val entries = readEntries(workbook) ?: return workbook
-        val sheetXml = entries[SHEET_PART]?.decodeToString() ?: return workbook
-        if (!sheetXml.contains(DIMENSION_OPEN)) return workbook
-        val patched = DIMENSION_ELEMENT.replace(sheetXml, """<dimension ref="${dimensionRef(sheetXml)}" />""")
-        if (patched == sheetXml) return workbook
-        entries[SHEET_PART] = patched.encodeToByteArray()
-        return writeEntries(entries)
+        var changed = false
+        entries.keys.filter { SHEET_PART.matches(it) }.toList().forEach { part ->
+            val sheetXml = entries[part]?.decodeToString() ?: return@forEach
+            if (!sheetXml.contains(DIMENSION_OPEN)) return@forEach
+            val patched = DIMENSION_ELEMENT.replace(sheetXml, """<dimension ref="${dimensionRef(sheetXml)}" />""")
+            if (patched == sheetXml) return@forEach
+            entries[part] = patched.encodeToByteArray()
+            changed = true
+        }
+        return if (changed) writeEntries(entries) else workbook
     }
 
     /**

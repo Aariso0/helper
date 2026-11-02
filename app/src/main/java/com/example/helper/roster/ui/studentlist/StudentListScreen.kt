@@ -1,6 +1,9 @@
 package com.example.helper.roster.ui.studentlist
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,12 +53,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.helper.R
 import com.example.helper.coredata.entity.Student
+import com.example.helper.motion.MotionKeys
+import com.example.helper.motion.pressScale
+import com.example.helper.motion.sharedElementIfPossible
 import com.example.helper.nav.Routes
 import com.example.helper.roster.viewmodel.studentListViewModel
 import java.io.File
@@ -71,6 +78,7 @@ fun StudentListScreen(
     onOpenStudent: (studentId: String) -> Unit,
     onOpenExams: (String) -> Unit = {},
     onBack: () -> Unit,
+    sharedScope: AnimatedVisibilityScope? = null,
 ) {
     val viewModel = studentListViewModel(classId)
     val state by viewModel.uiState.collectAsState()
@@ -178,6 +186,7 @@ fun StudentListScreen(
                             student = student,
                             onClick = { onOpenStudent(student.id) },
                             onDelete = { studentBeingDeleted = student },
+                            sharedScope = sharedScope,
                         )
                     }
                     item { Spacer(Modifier.height(72.dp)) }
@@ -226,8 +235,10 @@ private fun StudentRow(
     student: Student,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    sharedScope: AnimatedVisibilityScope? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
 
     Row(
         modifier = Modifier
@@ -238,11 +249,19 @@ private fun StudentRow(
         Row(
             modifier = Modifier
                 .weight(1f)
-                .clickable(onClick = onClick)
+                .pressScale(interactionSource)
+                .clickable(interactionSource = interactionSource, indication = LocalIndication.current, onClick = onClick)
                 .padding(vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StudentAvatar(student = student, size = 44.dp)
+            StudentAvatar(
+                student = student,
+                size = 44.dp,
+                modifier = Modifier.sharedElementIfPossible(
+                    key = MotionKeys.student(student.id),
+                    animatedVisibilityScope = sharedScope,
+                ),
+            )
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -281,27 +300,39 @@ private fun StudentRow(
 
 /** Photo when stored, else initial-letter circle — used across roster. */
 @Composable
-fun StudentAvatar(student: Student, size: androidx.compose.ui.unit.Dp) {
+fun StudentAvatar(
+    student: Student,
+    size: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
+    initialTextStyle: TextStyle = MaterialTheme.typography.titleMedium,
+    contentDescription: String = "Photo of ${student.name}",
+    onClick: (() -> Unit)? = null,
+) {
+    // Order matters for shared elements: size first, caller modifier (which
+    // carries sharedElement), clip last.
+    val base = Modifier
+        .size(size)
+        .then(modifier)
+        .clip(CircleShape)
+    val tap = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     val photoPath = student.photoPath
     if (photoPath != null && File(photoPath).exists()) {
         AsyncImage(
             model = File(photoPath),
-            contentDescription = "Photo of ${student.name}",
+            contentDescription = contentDescription,
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(size)
-                .clip(CircleShape),
+            modifier = base.then(tap),
         )
     } else {
         Surface(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            modifier = Modifier.size(size),
+            modifier = base.then(tap),
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     text = student.name.trim().take(1).uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = initialTextStyle,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

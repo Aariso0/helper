@@ -21,9 +21,4 @@ class ExportColumnRepository(private val dao: ExportColumnDao) {
     suspend fun upsert(column: ExportColumn) {
         dao.upsert(column)
     }
-
-    /** Empty table = defaults; used by "Reset to defaults". */
-    suspend fun reset() {
-        dao.deleteAll()
-    }
 }

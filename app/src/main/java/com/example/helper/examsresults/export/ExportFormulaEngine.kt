@@ -25,6 +25,8 @@ internal object ExportFormulaEngine {
     const val MAX_FORMULA_LENGTH = 500
 
     private val TOKEN = Regex("""\{([^{}]*)\}""")
+    /** A1-style cell or range reference, used only for the soft notice. */
+    private val CELL_REFERENCE = Regex("""(?<![A-Za-z0-9_])[$]?[A-Za-z]{1,3}[$]?[0-9]+""")
     private const val ALL_MARKS = "All Marks"
     private const val ALL_PASS_CHECKS = "All Pass Checks"
 
@@ -92,12 +94,63 @@ internal object ExportFormulaEngine {
         return Result.success("=$resolved")
     }
 
+    /**
+     * The one blocking error for a single column, or `null` when the formula
+     * can be written. Used by the editor (live, while typing) and by [validate].
+     */
+    fun blockingError(
+        column: ExportColumn,
+        columns: List<ExportColumn>,
+        subjects: List<ExamSubject>,
+    ): String? {
+        if (column.kind == ExportColumnKind.TOTAL_MAX || column.kind == ExportColumnKind.RESULT) {
+            return null
+        }
+        val formula = ExportColumnDefaults.templateFor(column).trim()
+        if (formula.isEmpty()) return "Formula is empty."
+        val resolved = resolve(column, columns, subjects).getOrElse { error ->
+            return error.message ?: "Formula is invalid."
+        }
+        val pasted = formula.startsWith("=")
+        return FormulaSyntaxValidator.error(resolved.removePrefix("="), allowAnyFunction = pasted)
+    }
+
+    /**
+     * A friendly heads-up that does not block the export. The common beginner
+     * mistake is a formula with no field in it, which writes the same answer
+     * into every student's row.
+     */
+    fun notice(
+        column: ExportColumn,
+        columns: List<ExportColumn>,
+        subjects: List<ExamSubject>,
+    ): String? {
+        if (column.kind == ExportColumnKind.TOTAL_MAX || column.kind == ExportColumnKind.RESULT) {
+            return null
+        }
+        val formula = ExportColumnDefaults.templateFor(column).trim()
+        if (formula.isEmpty() || blockingError(column, columns, subjects) != null) return null
+        if (!formula.startsWith("=")) {
+            if (!TOKEN.containsMatchIn(formula)) {
+                return "No field in this formula, so every student gets the same value."
+            }
+            return null
+        }
+        val body = formula.removePrefix("=").trim()
+        if (CELL_REFERENCE.containsMatchIn(body) || body.any { it in "({[" }) {
+            return null
+        }
+        if (body.toDoubleOrNull() != null) {
+            return "This formula is just a number; every student gets the same value."
+        }
+        return "This formula doesn’t point at any cell, so every student gets the same value."
+    }
+
     /** All issues that should block the export, in column order. */
     fun validate(
         columns: List<ExportColumn>,
         subjects: List<ExamSubject>,
     ): List<ExportColumnIssue> {
-        if (columns.isEmpty()) return emptyList()
         val issues = mutableListOf<ExportColumnIssue>()
 
         val labelOwners = mutableMapOf<String, ExportColumn>()
@@ -149,7 +202,12 @@ internal object ExportFormulaEngine {
                 )
                 return@forEach
             }
-            if (formula.startsWith("=")) return@forEach
+            if (formula.startsWith("=")) {
+                blockingError(column, columns, subjects)?.let { message ->
+                    issues += ExportColumnIssue(column.id, displayLabel(column), message)
+                }
+                return@forEach
+            }
 
             val fields = TOKEN.findAll(formula).map { it.groupValues[1].trim() }.toList()
             val selfReferences = fields.any { field ->
@@ -166,12 +224,8 @@ internal object ExportFormulaEngine {
                 return@forEach
             }
 
-            resolve(column, columns, subjects).onFailure { error ->
-                issues += ExportColumnIssue(
-                    column.id,
-                    displayLabel(column),
-                    error.message ?: "Formula is invalid.",
-                )
+            blockingError(column, columns, subjects)?.let { message ->
+                issues += ExportColumnIssue(column.id, displayLabel(column), message)
             }
         }
 
@@ -288,7 +342,11 @@ internal object ExportFormulaEngine {
         "OR($cell=\"\",$cell>=${subject.passMarks})"
     }.joinToString(",")
 
-    private const val FIRST_MARK_COL = 3
+    /**
+     * A1 column of the first subject mark: A is S.No., B Roll No., C Student
+     * Name, so the marks start at D.
+     */
+    private const val FIRST_MARK_COL = 4
 
     private fun computedColumnStart(subjects: List<ExamSubject>): Int =
         FIRST_MARK_COL + subjects.size

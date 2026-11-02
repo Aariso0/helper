@@ -60,6 +60,9 @@ object Routes {
     fun examsList(classId: String) = "exams/$classId"
     const val EXAM_CREATE = "exam/create/{classId}"
     fun examCreate(classId: String) = "exam/create/$classId"
+    /** Create an exam (subjects + marks) from an Excel sheet. */
+    const val EXAM_IMPORT = "exam/import/{classId}"
+    fun examImport(classId: String) = "exam/import/$classId"
     const val EXAM_DETAIL = "exam/{examId}/class/{classId}"
     fun examDetail(examId: String, classId: String) = "exam/$examId/class/$classId"
     const val EXAM_MARK_ENTRY = "exam/{examId}/class/{classId}/marks/{subjectId}"

@@ -17,10 +17,12 @@ import androidx.navigation.navArgument
 import com.example.helper.attendance.ui.AttendanceScreen
 import com.example.helper.exportbackup.ui.ExportScreen
 import com.example.helper.examsresults.examListViewModel
+import com.example.helper.examsresults.examImportViewModel
 import com.example.helper.examsresults.examResultViewModel
 import com.example.helper.examsresults.examSetupViewModel
 import com.example.helper.examsresults.markEntryViewModel
 import com.example.helper.examsresults.ui.ExamDetailScreen
+import com.example.helper.examsresults.ui.ExamImportScreen
 import com.example.helper.examsresults.ui.ExamListScreen
 import com.example.helper.examsresults.ui.ExamSetupScreen
 import com.example.helper.examsresults.ui.ExportColumnsScreen
@@ -108,6 +110,7 @@ fun AppNavHost(
                 onOpenStudent = { studentId -> navController.navigate(Routes.student(studentId)) },
                 onOpenExams = { cid -> navController.navigate(Routes.examsList(cid)) },
                 onBack = { navController.popBackStack() },
+                sharedScope = this,
             )
         }
         composable(
@@ -119,6 +122,7 @@ fun AppNavHost(
                 studentId = studentId,
                 onDone = { navController.popBackStack() },
                 onQuickNote = { id -> navController.navigate(Routes.quickNote(id)) },
+                sharedScope = this,
             )
         }
 
@@ -178,8 +182,24 @@ fun AppNavHost(
             ExamListScreen(
                 viewModel = examListViewModel(classId),
                 onCreateExam = { navController.navigate(Routes.examCreate(classId)) },
+                onImportExams = { navController.navigate(Routes.examImport(classId)) },
                 onOpenExam = { examId, examClassId -> navController.navigate(Routes.examDetail(examId, examClassId)) },
                 onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.EXAM_IMPORT,
+            arguments = listOf(navArgument(Routes.Args.CLASS_ID) { type = NavType.StringType }),
+        ) { entry ->
+            val classId = entry.classId() ?: return@composable
+            ExamImportScreen(
+                viewModel = examImportViewModel(classId),
+                onImported = { examId ->
+                    navController.navigate(Routes.examDetail(examId, classId)) {
+                        popUpTo(Routes.EXAM_IMPORT) { inclusive = true }
+                    }
+                },
+                onDismiss = { navController.popBackStack() },
             )
         }
         composable(

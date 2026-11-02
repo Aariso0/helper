@@ -6,7 +6,9 @@ import com.example.helper.coredata.entity.ExportColumnKind
 /**
  * The formula columns every results sheet starts with. They are ordinary
  * rows in `export_columns` once the teacher edits the layout; an empty table
- * means "use these", which is why migrating an old database needs no seeding.
+ * still means "never configured", so migrating an old database needs no
+ * seeding. Deleting the last column stores [CLEARED_LAYOUT_ID] instead, so an
+ * intentionally empty layout does not fall back to these defaults.
  */
 object ExportColumnDefaults {
     const val TOTAL_OBTAINED_ID = "builtin-total-obtained"
@@ -14,11 +16,19 @@ object ExportColumnDefaults {
     const val PERCENTAGE_ID = "builtin-percentage"
     const val RESULT_ID = "builtin-result"
 
+    /**
+     * Marker row written when the teacher deletes the last column. A truly
+     * empty table means "never configured" (old databases), so without this
+     * row the defaults would come back after the last delete. It is hidden
+     * from the UI and never exported.
+     */
+    const val CLEARED_LAYOUT_ID = "builtin-layout-cleared"
+
     const val TOTAL_OBTAINED_TEMPLATE = "SUM({All Marks})"
     const val PERCENTAGE_TEMPLATE =
         "IF({Total Max}=0,0,{Total Obtained}/{Total Max}*100)"
     const val RESULT_TEMPLATE =
-        "IF(COUNT({All Marks})=0,\"\",IF(AND({All Pass Checks}),\"PASS\",\"FAIL\"))"
+        "IF(COUNT({All Marks})=0,\"\",IF(AND({All Pass Checks}),\"Pass\",\"Fail\"))"
 
     fun columns(): List<ExportColumn> = listOf(
         ExportColumn(
@@ -53,7 +63,27 @@ object ExportColumnDefaults {
 
     /** Stored layout if any, otherwise the built-in defaults. */
     fun effective(stored: List<ExportColumn>): List<ExportColumn> =
-        (stored.ifEmpty { columns() }).sortedWith(compareBy({ it.sortOrder }, { it.id }))
+        if (stored.isEmpty()) {
+            columns()
+        } else {
+            stored.filterNot { it.id == CLEARED_LAYOUT_ID }
+                .sortedWith(compareBy({ it.sortOrder }, { it.id }))
+        }
+
+    /** Rows to persist: an emptied layout keeps its marker so it stays empty. */
+    fun forStorage(columns: List<ExportColumn>): List<ExportColumn> =
+        columns.ifEmpty {
+            listOf(
+                ExportColumn(
+                    id = CLEARED_LAYOUT_ID,
+                    label = "",
+                    kind = ExportColumnKind.CUSTOM,
+                    formula = "",
+                    sortOrder = 0,
+                    enabled = false,
+                ),
+            )
+        }
 
     /** The formula actually written for a built-in kind. */
     fun templateFor(column: ExportColumn): String = when (column.kind) {
@@ -72,8 +102,4 @@ object ExportColumnDefaults {
         ExportColumnKind.RESULT -> "Result"
         ExportColumnKind.CUSTOM -> null
     }
-
-    /** Built-in columns stay on the sheet; only custom columns can be deleted. */
-    fun isBuiltIn(column: ExportColumn): Boolean =
-        column.id in setOf(TOTAL_OBTAINED_ID, TOTAL_MAX_ID, PERCENTAGE_ID, RESULT_ID)
 }

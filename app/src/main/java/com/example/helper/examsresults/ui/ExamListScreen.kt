@@ -1,10 +1,5 @@
 package com.example.helper.examsresults.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,7 +38,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.helper.examsresults.viewmodel.ExamListViewModel
 import com.example.helper.examsresults.viewmodel.ExamWithClass
-import com.example.helper.motion.Motion
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -53,6 +47,7 @@ import java.util.Locale
 fun ExamListScreen(
     viewModel: ExamListViewModel,
     onCreateExam: () -> Unit,
+    onImportExams: () -> Unit,
     onOpenExam: (examId: String, classId: String) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -67,6 +62,11 @@ fun ExamListScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    // The marks usually already exist in a sheet; importing the
+                    // whole exam is one tap from here next to "create".
+                    TextButton(onClick = onImportExams) { Text("Import") }
                 },
             )
         },
@@ -92,19 +92,16 @@ fun ExamListScreen(
             }
             if (state.exams.isEmpty()) {
                 item {
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(Motion.Effects.Default) + slideInVertically(Motion.Spatial.FastOffset) { it / 4 },
-                        exit = fadeOut(Motion.Effects.Default),
+                    // Plain content, not AnimatedVisibility(visible = true):
+                    // this item is only composed while the list is empty, so an
+                    // enter transition would never fire.
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Text("No exams yet", style = MaterialTheme.typography.bodyLarge)
-                        }
+                        Text("No exams yet", style = MaterialTheme.typography.bodyLarge)
                     }
                 }
             }

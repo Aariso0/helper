@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import com.example.helper.coredata.entity.ExamSubject
 import com.example.helper.coredata.entity.ExportColumn
 import com.example.helper.coredata.entity.ExportColumnKind
-import com.example.helper.examsresults.export.ExportColumnDefaults
 import com.example.helper.examsresults.export.ExportColumnIssue
 import com.example.helper.examsresults.export.ExportFormulaEngine
 import com.example.helper.examsresults.viewmodel.ExportColumnsViewModel
@@ -75,7 +74,6 @@ fun ExportColumnsScreen(
     var editing by remember { mutableStateOf<ExportColumn?>(null) }
     var adding by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<ExportColumn?>(null) }
-    var showReset by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -85,9 +83,6 @@ fun ExportColumnsScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                },
-                actions = {
-                    TextButton(onClick = { showReset = true }) { Text("Reset") }
                 },
             )
         },
@@ -159,16 +154,11 @@ fun ExportColumnsScreen(
                         }
                         IconButton(
                             onClick = { deleting = column },
-                            enabled = !ExportColumnDefaults.isBuiltIn(column),
                         ) {
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Delete ${column.label}",
-                                tint = if (ExportColumnDefaults.isBuiltIn(column)) {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                } else {
-                                    MaterialTheme.colorScheme.error
-                                },
+                                tint = MaterialTheme.colorScheme.error,
                             )
                         }
                     }
@@ -232,7 +222,12 @@ fun ExportColumnsScreen(
         AlertDialog(
             onDismissRequest = { deleting = null },
             title = { Text("Delete ${column.label}?") },
-            text = { Text("The column is removed from the exported sheet. This can’t be undone.") },
+            text = {
+                Text(
+                    "The column is removed from the exported sheet. Any formula " +
+                        "that uses it will show an error until you update that formula."
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -246,35 +241,11 @@ fun ExportColumnsScreen(
             },
         )
     }
-
-    if (showReset) {
-        AlertDialog(
-            onDismissRequest = { showReset = false },
-            title = { Text("Reset export columns?") },
-            text = {
-                Text(
-                    "Restores Total Obtained, Total Max, Percentage and Result in " +
-                        "their default order and removes custom columns."
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.resetToDefaults()
-                        showReset = false
-                    },
-                ) { Text("Reset", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showReset = false }) { Text("Cancel") }
-            },
-        )
-    }
 }
 
 private fun formulaSummary(column: ExportColumn): String = when (column.kind) {
     ExportColumnKind.TOTAL_MAX -> "Fixed number"
-    ExportColumnKind.RESULT -> "PASS / FAIL from the subject pass marks"
+    ExportColumnKind.RESULT -> "Pass / Fail from the subject pass marks"
     else -> column.formula.ifBlank { "(empty formula)" }
 }
 
@@ -305,8 +276,18 @@ private fun FormulaEditorDialog(
     } else {
         ExportFormulaEngine.resolve(previewColumn, previewColumns, subjects, ExportFormulaEngine.PREVIEW_ROW)
     }
-    val canSave = label.isNotBlank() &&
-        (readOnlyFormula || formula.text.isNotBlank())
+    val blockingError = if (readOnlyFormula) {
+        null
+    } else {
+        ExportFormulaEngine.blockingError(previewColumn, previewColumns, subjects)
+    }
+    val notice = if (readOnlyFormula) {
+        null
+    } else {
+        ExportFormulaEngine.notice(previewColumn, previewColumns, subjects)
+    }
+    val canSave = label.isNotBlank() && (readOnlyFormula || formula.text.isNotBlank()) &&
+        blockingError == null
 
     fun insertAtCursor(text: String) {
         val selection = formula.selection
@@ -356,7 +337,22 @@ private fun FormulaEditorDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        Switch(checked = pasteMode, onCheckedChange = { pasteMode = it })
+                        Switch(
+                            checked = pasteMode,
+                            onCheckedChange = { pasted ->
+                                pasteMode = pasted
+                                val text = formula.text.trimStart()
+                                formula = when {
+                                    pasted && !text.startsWith("=") ->
+                                        TextFieldValue("=$text", selection = TextRange(text.length + 1))
+                                    !pasted && text.startsWith("=") -> {
+                                        val body = text.removePrefix("=")
+                                        TextFieldValue(body, selection = TextRange(body.length))
+                                    }
+                                    else -> formula.copy(text = text)
+                                }
+                            },
+                        )
                     }
                 }
 
@@ -445,6 +441,20 @@ private fun FormulaEditorDialog(
                             MaterialTheme.colorScheme.error
                         },
                     )
+
+                    if (blockingError != null) {
+                        Text(
+                            "Can’t save: $blockingError",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    } else if (notice != null) {
+                        Text(
+                            notice,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         },

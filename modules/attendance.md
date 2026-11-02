@@ -86,4 +86,5 @@ The screen is the product's thesis ("faster than Excel"), so every choice serves
   1. On-device QA (no device here): long-press sheet gesture, snackbar undo timing on rapid taps, DatePicker on small screens, Save bar vs. IME/nav insets.
 - **Blocked on:** nothing.
 - **Handoff note:** Save on a *fresh, untouched* session deliberately writes the all-Present preset — the zero-tap common case must clear the Today nudge; do not "optimize" it away. `period` field untouched (no period picker, user decision). The absentee share covers ABSENT only — Late/Excused are not absentees.
-- **Last checkpoint:** 2026-10-21T00:27+05:30
+- **Bottom bar above 3-button navigation (2026-11-01):** `AttendanceScreen`'s `SaveBar` is a custom `bottomBar`, which `Scaffold` does not inset, so under `enableEdgeToEdge()` the Save button sat under the system navigation row. `Modifier.navigationBarsPadding()` on the button lifts it clear; the surface still paints behind the bar.
+- **Last checkpoint:** 2026-10-21T00:27+05:30 (bottom-bar inset added 2026-11-01, gate green, zero warnings)

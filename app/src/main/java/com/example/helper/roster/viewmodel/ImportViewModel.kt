@@ -10,9 +10,12 @@ import com.example.helper.coredata.repository.SchoolClassRepository
 import com.example.helper.coredata.repository.StudentRepository
 import com.example.helper.roster.ui.import.ImportFileException
 import com.example.helper.roster.ui.import.ImportParsers
+import com.example.helper.roster.ui.import.ImportRange
 import com.example.helper.roster.ui.import.ParsedTable
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +36,14 @@ data class ImportUiState(
     val phase: ImportPhase = ImportPhase.IDLE,
     val fileName: String? = null,
     val table: ParsedTable? = null,
+    /** Sheets the file offers; empty for a CSV, which has no tabs. */
+    val sheets: List<String> = emptyList(),
+    val sheetName: String? = null,
+    /** Row numbers as typed (1-based, the numbers Excel shows). */
+    val startRow: String = "",
+    val endRow: String = "",
+    val rangeError: String? = null,
+    val reloading: Boolean = false,
     val nameColumn: Int = -1,
     val rollColumn: Int = -1,
     val contactColumn: Int = -1,
@@ -66,7 +77,10 @@ data class ImportUiState(
             val table = table ?: return false
             return phase == ImportPhase.MAPPING &&
                 nameColumn in table.headers.indices &&
-                targetName != null
+                targetName != null &&
+                // Never import a window the teacher has not successfully loaded.
+                rangeError == null &&
+                !reloading
         }
 
     /** First [limit] importable rows mapped for the preview table. */
@@ -92,6 +106,10 @@ class ImportViewModel(
     private val _state = MutableStateFlow(ImportUiState())
     val state: StateFlow<ImportUiState> = _state
 
+    /** The picked file, kept so a sheet or row change can re-read it. */
+    private var bytes: ByteArray? = null
+    private var parseJob: Job? = null
+
     private val existingClasses = classRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -105,23 +123,32 @@ class ImportViewModel(
     }
 
     fun onFilePicked(uri: Uri) {
+        parseJob?.cancel()
+        bytes = null
         _state.value = _state.value.copy(phase = ImportPhase.PARSING, error = null)
         viewModelScope.launch {
             try {
-                val bytes = withContext(Dispatchers.IO) {
+                val data = withContext(Dispatchers.IO) {
                     context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 } ?: throw ImportFileException("We couldn’t open that file.")
                 val displayName = withContext(Dispatchers.IO) { resolveDisplayName(uri) }
-                val table = withContext(Dispatchers.Default) {
-                    ImportParsers.parse(displayName, bytes)
+                val parsed = withContext(Dispatchers.Default) {
+                    ImportParsers.parseWorkbook(displayName, data)
                 }
+                bytes = data
                 _state.value = _state.value.copy(
                     phase = ImportPhase.MAPPING,
                     fileName = displayName,
-                    table = table,
-                    nameColumn = guessColumn(table, NAME_HINTS),
-                    rollColumn = guessColumn(table, ROLL_HINTS),
-                    contactColumn = guessColumn(table, CONTACT_HINTS),
+                    table = parsed.table,
+                    sheets = parsed.sheets,
+                    sheetName = parsed.sheetName,
+                    startRow = "",
+                    endRow = "",
+                    rangeError = null,
+                    reloading = false,
+                    nameColumn = guessColumn(parsed.table, NAME_HINTS),
+                    rollColumn = guessColumn(parsed.table, ROLL_HINTS),
+                    contactColumn = guessColumn(parsed.table, CONTACT_HINTS),
                     targetClassId = existingClasses.value.firstOrNull()?.id,
                 )
             } catch (e: Exception) {
@@ -129,6 +156,84 @@ class ImportViewModel(
                     phase = ImportPhase.IDLE,
                     error = e.message ?: "We couldn’t read that file. Try another one.",
                 )
+            }
+        }
+    }
+
+    fun onSheetSelected(name: String) {
+        if (name == _state.value.sheetName) return
+        _state.update { it.copy(sheetName = name) }
+        reparse()
+    }
+
+    fun onStartRowChanged(text: String) {
+        _state.update { it.copy(startRow = text.filter(Char::isDigit).take(7)) }
+        reparse()
+    }
+
+    fun onEndRowChanged(text: String) {
+        _state.update { it.copy(endRow = text.filter(Char::isDigit).take(7)) }
+        reparse()
+    }
+
+    /**
+     * Re-reads the picked file with the current sheet and row window. The
+     * mapping screen stays put: a bad range becomes an inline message, not a
+     * trip back to the start.
+     */
+    private fun reparse() {
+        val data = bytes ?: return
+        val snapshot = _state.value
+        val fileName = snapshot.fileName ?: return
+        val start = snapshot.startRow.toIntOrNull()
+        val end = snapshot.endRow.toIntOrNull()
+        val error = when {
+            snapshot.startRow.isNotBlank() && start == null -> "Start row must be a number."
+            snapshot.endRow.isNotBlank() && end == null -> "End row must be a number."
+            start != null && start < 1 -> "Start row starts at 1."
+            end != null && end < 1 -> "End row must be 1 or more."
+            start != null && end != null && end < start ->
+                "End row must be at or after row $start."
+            else -> null
+        }
+        if (error != null) {
+            _state.update { it.copy(rangeError = error) }
+            return
+        }
+
+        parseJob?.cancel()
+        parseJob = viewModelScope.launch {
+            _state.update { it.copy(reloading = true, rangeError = null) }
+            try {
+                val parsed = withContext(Dispatchers.Default) {
+                    ImportParsers.parseWorkbook(
+                        fileName = fileName,
+                        bytes = data,
+                        range = ImportRange(
+                            sheetName = snapshot.sheetName,
+                            startRow = start,
+                            endRow = end,
+                        ),
+                    )
+                }
+                _state.update {
+                    it.copy(
+                        table = parsed.table,
+                        reloading = false,
+                        nameColumn = guessColumn(parsed.table, NAME_HINTS),
+                        rollColumn = guessColumn(parsed.table, ROLL_HINTS),
+                        contactColumn = guessColumn(parsed.table, CONTACT_HINTS),
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        reloading = false,
+                        rangeError = e.message ?: "We couldn’t read those rows.",
+                    )
+                }
             }
         }
     }
@@ -144,11 +249,15 @@ class ImportViewModel(
 
     fun dismissError() = _state.update { it.copy(error = null) }
     fun reset() {
+        parseJob?.cancel()
+        bytes = null
         _state.value = ImportUiState()
     }
 
     /** Called by the screen after it relayed [ImportUiState.doneMessage]. */
     fun consumeDone() {
+        parseJob?.cancel()
+        bytes = null
         _state.value = ImportUiState()
     }
 

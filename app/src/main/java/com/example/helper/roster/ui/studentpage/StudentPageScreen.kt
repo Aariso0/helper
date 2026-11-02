@@ -2,10 +2,10 @@ package com.example.helper.roster.ui.studentpage
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,19 +52,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.example.helper.coredata.entity.AttendanceStatus
+import com.example.helper.motion.MotionKeys
+import com.example.helper.motion.sharedElementIfPossible
 import com.example.helper.examsresults.ui.StudentExamHistory
 import com.example.helper.roster.viewmodel.studentPageViewModel
+import com.example.helper.roster.ui.studentlist.StudentAvatar
 import com.example.helper.roster.viewmodel.toDisplayDate
 import com.example.helper.studentfeedback.ui.FeedbackTimeline
-import java.io.File
 
 /**
  * The student page (card: `roster-screens` → student page): photo, roll
@@ -79,6 +78,7 @@ fun StudentPageScreen(
     studentId: String,
     onDone: () -> Unit,
     onQuickNote: (studentId: String) -> Unit,
+    sharedScope: AnimatedVisibilityScope? = null,
 ) {
     val viewModel = studentPageViewModel(studentId)
     val state by viewModel.uiState.collectAsState()
@@ -164,49 +164,24 @@ fun StudentPageScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Box {
-                    val photoPath = student.photoPath
-                    if (photoPath != null && File(photoPath).exists()) {
-                        AsyncImage(
-                            model = File(photoPath),
-                            contentDescription = "Photo of ${student.name}, tap to change",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(96.dp)
-                                .clip(CircleShape)
-                                .clickable {
-                                    photoPicker.launch(
-                                        PickVisualMediaRequest(
-                                            ActivityResultContracts.PickVisualMedia.ImageOnly
-                                        )
-                                    )
-                                },
+                    val pickPhoto = {
+                        photoPicker.launch(
+                            PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageOnly
+                            )
                         )
-                    } else {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier
-                                .size(96.dp)
-                                .clickable {
-                                    photoPicker.launch(
-                                        PickVisualMediaRequest(
-                                            ActivityResultContracts.PickVisualMedia.ImageOnly
-                                        )
-                                    )
-                                },
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = student.name.trim().take(1).uppercase(),
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
                     }
+                    StudentAvatar(
+                        student = student,
+                        size = 96.dp,
+                        initialTextStyle = MaterialTheme.typography.headlineMedium,
+                        contentDescription = "Photo of ${student.name}, tap to change",
+                        onClick = pickPhoto,
+                        modifier = Modifier.sharedElementIfPossible(
+                            key = MotionKeys.student(student.id),
+                            animatedVisibilityScope = sharedScope,
+                        ),
+                    )
                     Surface(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primaryContainer,

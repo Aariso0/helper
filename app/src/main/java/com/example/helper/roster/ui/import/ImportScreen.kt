@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -44,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.helper.roster.viewmodel.ImportPhase
@@ -108,6 +111,9 @@ fun ImportScreen(
                         onClick = viewModel::commit,
                         enabled = state.canCommit,
                         modifier = Modifier
+                            // Custom bottom bar: Scaffold does not inset it, so
+                            // keep the Import button above system navigation.
+                            .navigationBarsPadding()
                             .fillMaxWidth()
                             .padding(16.dp),
                     ) {
@@ -143,6 +149,9 @@ fun ImportScreen(
                 onTargetClass = viewModel::onTargetClass,
                 onStartNewClass = viewModel::onStartNewClass,
                 onNewClassName = viewModel::onNewClassName,
+                onSheet = viewModel::onSheetSelected,
+                onStartRow = viewModel::onStartRowChanged,
+                onEndRow = viewModel::onEndRowChanged,
                 onNameColumn = viewModel::onNameColumn,
                 onRollColumn = viewModel::onRollColumn,
                 onContactColumn = viewModel::onContactColumn,
@@ -248,6 +257,9 @@ private fun MappingContent(
     onTargetClass: (String) -> Unit,
     onStartNewClass: () -> Unit,
     onNewClassName: (String) -> Unit,
+    onSheet: (String) -> Unit,
+    onStartRow: (String) -> Unit,
+    onEndRow: (String) -> Unit,
     onNameColumn: (Int) -> Unit,
     onRollColumn: (Int) -> Unit,
     onContactColumn: (Int) -> Unit,
@@ -273,6 +285,76 @@ private fun MappingContent(
             )
             TextButton(onClick = onChooseAnother, enabled = !committing) {
                 Text("Choose another")
+            }
+        }
+
+        // --- Sheet and rows -----------------------------------------------
+        // A class list is often one block inside a bigger workbook, so the
+        // teacher says which tab and which rows instead of importing the lot.
+        Text(
+            text = "Sheet and rows",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+        )
+        if (state.sheets.size > 1) {
+            SheetDropdownField(
+                sheets = state.sheets,
+                selected = state.sheetName,
+                enabled = !committing,
+                onSelect = onSheet,
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = state.startRow,
+                onValueChange = onStartRow,
+                label = { Text("First row") },
+                placeholder = { Text("1") },
+                singleLine = true,
+                enabled = !committing,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedTextField(
+                value = state.endRow,
+                onValueChange = onEndRow,
+                label = { Text("Last row (optional)") },
+                placeholder = { Text("to the end") },
+                singleLine = true,
+                enabled = !committing,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Text(
+            text = "Numbers are the rows Excel shows. The first row of the " +
+                "range is the header; leave the last row empty to read down " +
+                "to the last filled row.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        state.rangeError?.let { message ->
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        if (state.reloading) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Reading those rows…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 
@@ -396,6 +478,44 @@ private fun PreviewCell(text: String, modifier: Modifier, isHeader: Boolean = fa
         overflow = TextOverflow.Ellipsis,
         modifier = modifier.padding(end = 8.dp),
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SheetDropdownField(
+    sheets: List<String>,
+    selected: String?,
+    enabled: Boolean,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (enabled) expanded = it },
+    ) {
+        OutlinedTextField(
+            value = selected ?: sheets.firstOrNull().orEmpty(),
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            label = { Text("Sheet") },
+            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            sheets.forEach { sheet ->
+                DropdownMenuItem(
+                    text = { Text(sheet) },
+                    onClick = { expanded = false; onSelect(sheet) },
+                )
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

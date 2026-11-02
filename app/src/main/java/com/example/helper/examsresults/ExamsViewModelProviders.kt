@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.helper.HelperApplication
 import com.example.helper.examsresults.viewmodel.ExamListViewModel
+import com.example.helper.examsresults.viewmodel.ExamImportViewModel
 import com.example.helper.examsresults.viewmodel.ExamResultViewModel
 import com.example.helper.examsresults.viewmodel.ExamSetupViewModel
 import com.example.helper.examsresults.viewmodel.ExportColumnsViewModel
@@ -26,6 +27,19 @@ fun examSetupViewModel(): ExamSetupViewModel {
     val app = LocalContext.current.applicationContext as HelperApplication
     return viewModel {
         ExamSetupViewModel(app.container.examRepository)
+    }
+}
+
+@Composable
+fun examImportViewModel(classId: String): ExamImportViewModel {
+    val app = LocalContext.current.applicationContext as HelperApplication
+    return viewModel(key = "exam-import-$classId") {
+        ExamImportViewModel(
+            context = app,
+            classId = classId,
+            examRepository = app.container.examRepository,
+            studentRepository = app.container.studentRepository,
+        )
     }
 }
 

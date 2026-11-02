@@ -1,9 +1,9 @@
 package com.example.helper.attendance.ui
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,18 +19,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.helper.coredata.entity.AttendanceStatus
 import com.example.helper.coredata.entity.Student
-import com.example.helper.motion.Motion
+import com.example.helper.motion.popOnChange
+import com.example.helper.motion.pressScale
 import com.example.helper.theme.ShellDimens
 
 /**
@@ -46,20 +47,18 @@ fun StudentRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    val scale by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = Motion.Spatial.Fast,
-        label = "rowScale",
-    )
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = ShellDimens.rowMinHeight)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .pressScale(interactionSource)
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+                onLongClick = onLongClick,
+            )
             .padding(horizontal = ShellDimens.screenPadding, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -79,25 +78,29 @@ fun StudentRow(
                 )
             }
         }
-        when (status) {
-            AttendanceStatus.PRESENT -> Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = "Present",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
+        // One pop per status change, on the indicator only. The row itself
+        // keeps a fixed height, so the list never re-lays-out on a tap.
+        Box(modifier = Modifier.popOnChange(status)) {
+            when (status) {
+                AttendanceStatus.PRESENT -> Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = "Present",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
 
-            AttendanceStatus.ABSENT -> StatusLabel("Absent", MaterialTheme.colorScheme.error)
-            AttendanceStatus.LATE -> StatusLabel("Late", MaterialTheme.colorScheme.tertiary)
-            AttendanceStatus.EXCUSED -> StatusLabel("Excused", MaterialTheme.colorScheme.secondary)
+                AttendanceStatus.ABSENT -> StatusLabel("Absent", MaterialTheme.colorScheme.error)
+                AttendanceStatus.LATE -> StatusLabel("Late", MaterialTheme.colorScheme.tertiary)
+                AttendanceStatus.EXCUSED -> StatusLabel("Excused", MaterialTheme.colorScheme.secondary)
+            }
         }
     }
 }

@@ -45,9 +45,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.helper.coredata.entity.ExamSubject
 import com.example.helper.examsresults.export.ExamExcelWriter
+import com.example.helper.examsresults.export.ExamPdfWriter
 import com.example.helper.examsresults.export.ExportFormulaEngine
 import com.example.helper.examsresults.viewmodel.ExamResultViewModel
-import com.example.helper.examsresults.viewmodel.ExportConfig
 import com.example.helper.share.asShareableUri
 import com.example.helper.share.shareFiles
 import kotlinx.coroutines.CoroutineScope
@@ -75,9 +75,10 @@ fun ExamDetailScreen(
     var subjectBeingDeleted by remember { mutableStateOf<ExamSubject?>(null) }
     var subjectBeingEdited by remember { mutableStateOf<ExamSubject?>(null) }
 
-    // PASS is always green and FAIL always red — no colour question before an
-    // export; the two colours are the sheet's defaults. The formula columns
-    // come from the teacher's saved layout and are validated before writing.
+    // A passed row stays plain and a failed row is bold italic — the sheet's
+    // conditional rule carries that, so there is no colour question before an
+    // export. The formula columns come from the teacher's saved layout and are
+    // validated before writing.
     val exportToExcel = {
         val activeColumns = state.exportColumns.filter { it.enabled }
         val issues = ExportFormulaEngine.validate(activeColumns, state.subjects)
@@ -92,7 +93,6 @@ fun ExamDetailScreen(
                             examName = state.examName,
                             subjects = state.subjects,
                             results = state.results,
-                            config = ExportConfig(),
                             columns = activeColumns,
                         )
                     }
@@ -106,6 +106,31 @@ fun ExamDetailScreen(
                 }.onFailure { error ->
                     exportError = error.message ?: "Could not export the sheet."
                 }
+            }
+        }
+        Unit
+    }
+
+    // The PDF is the printable copy: it needs no formula validation because it
+    // prints only the values the app computes, so a broken custom column can
+    // never block a print-out.
+    val exportToPdf = {
+        CoroutineScope(Dispatchers.Main).launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    ExamPdfWriter.write(
+                        context = context,
+                        examName = state.examName,
+                        subjects = state.subjects,
+                        results = state.results,
+                        columns = state.exportColumns,
+                    )
+                }
+            }.onSuccess { file ->
+                val uri = file.asShareableUri(context)
+                shareFiles(context, listOf(uri), mimeTypes = listOf("application/pdf"))
+            }.onFailure { error ->
+                exportError = error.message ?: "Could not export the PDF."
             }
         }
         Unit
@@ -128,6 +153,13 @@ fun ExamDetailScreen(
                         Icon(Icons.Default.MoreVert, contentDescription = "More options")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Export as PDF") },
+                            onClick = {
+                                menuOpen = false
+                                exportToPdf()
+                            },
+                        )
                         DropdownMenuItem(
                             text = { Text("Export columns") },
                             onClick = {
@@ -186,7 +218,7 @@ fun ExamDetailScreen(
                     Text("Export columns")
                 }
                 Text(
-                    "Total, PASS/FAIL, percentage or your own formula",
+                    "Total, Pass/Fail, percentage or your own formula",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

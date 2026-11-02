@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -44,23 +45,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.example.helper.attendance.search.JumpToStudent
 import com.example.helper.attendance.viewmodel.AttendanceViewModel.Counters
 import com.example.helper.attendance.viewmodel.attendanceViewModel
 import com.example.helper.coredata.entity.AttendanceStatus
 import com.example.helper.coredata.entity.Student
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import com.example.helper.share.shareText
 import com.example.helper.motion.Motion
 import com.example.helper.theme.ShellDimens
@@ -238,22 +237,20 @@ fun AttendanceScreen(
             ) {
                 if (visibleStudents.isEmpty()) {
                     item {
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = fadeIn(Motion.Effects.Default) + slideInVertically(Motion.Spatial.FastOffset) { it / 4 },
-                            exit = fadeOut(Motion.Effects.Default) + slideOutVertically(Motion.Spatial.FastOffset) { it / 4 },
-                        ) {
-                            Text(
-                                text = if (query.isBlank()) {
-                                    "No students in this class yet"
-                                } else {
-                                    "No students match “$query”"
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(ShellDimens.screenPadding),
-                            )
-                        }
+                        // No AnimatedVisibility here: the item only exists while
+                        // the list is empty, so `visible = true` would never run
+                        // an enter transition (and animating first composition
+                        // is against the motion card).
+                        Text(
+                            text = if (query.isBlank()) {
+                                "No students in this class yet"
+                            } else {
+                                "No students match “$query”"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(ShellDimens.screenPadding),
+                        )
                     }
                 }
                 itemsIndexed(visibleStudents, key = { _, student -> student.id }) { index, student ->
@@ -288,24 +285,55 @@ fun AttendanceScreen(
 /** Live counter ("Present 28 | Absent 2") — absences stand out at a glance. */
 @Composable
 private fun CounterText(counters: Counters) {
-    val p by animateIntAsState(counters.present, Motion.Spatial.FastInt, label = "p")
-    val a by animateIntAsState(counters.absent, Motion.Spatial.FastInt, label = "a")
-    val l by animateIntAsState(counters.late, Motion.Spatial.FastInt, label = "l")
-    val e by animateIntAsState(counters.excused, Motion.Spatial.FastInt, label = "e")
-    val text = buildAnnotatedString {
-        withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurface)) {
-            append("Present $p")
-        }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        CounterLabel("Present ", MaterialTheme.colorScheme.onSurface)
+        RollingNumber(counters.present, MaterialTheme.colorScheme.onSurface, "presentCount")
         if (counters.absent > 0) {
-            append(" · ")
-            withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
-                append("Absent $a")
-            }
+            CounterLabel(" · Absent ", MaterialTheme.colorScheme.error)
+            RollingNumber(counters.absent, MaterialTheme.colorScheme.error, "absentCount")
         }
-        if (counters.late > 0) append(" · Late $l")
-        if (counters.excused > 0) append(" · Excused $e")
+        if (counters.late > 0) {
+            CounterLabel(" · Late ", MaterialTheme.colorScheme.onSurface)
+            RollingNumber(counters.late, MaterialTheme.colorScheme.onSurface, "lateCount")
+        }
+        if (counters.excused > 0) {
+            CounterLabel(" · Excused ", MaterialTheme.colorScheme.onSurface)
+            RollingNumber(counters.excused, MaterialTheme.colorScheme.onSurface, "excusedCount")
+        }
     }
-    Text(text = text, style = MaterialTheme.typography.labelLarge)
+}
+
+@Composable
+private fun CounterLabel(text: String, color: Color) {
+    Text(text = text, style = MaterialTheme.typography.labelLarge, color = color)
+}
+
+/**
+ * The new value slides up into place while the old one leaves upward, so the
+ * change reads as a roll rather than a jump. The value is the content identity
+ * (no custom `contentKey`): two different numbers must never share a slot.
+ */
+@Composable
+private fun RollingNumber(value: Int, color: Color, label: String) {
+    AnimatedContent(
+        targetState = value,
+        transitionSpec = {
+            (slideInVertically(Motion.Spatial.FastOffset) { height -> height } +
+                fadeIn(Motion.Effects.Fast))
+                .togetherWith(
+                    slideOutVertically(Motion.Spatial.FastOffset) { height -> -height } +
+                        fadeOut(Motion.Effects.Fast),
+                )
+        },
+        contentAlignment = Alignment.Center,
+        label = label,
+    ) { target ->
+        Text(
+            text = target.toString(),
+            style = MaterialTheme.typography.labelLarge,
+            color = color,
+        )
+    }
 }
 
 /** Bottom-anchored Save (README rule 4): "done for this class". */
@@ -315,6 +343,9 @@ private fun SaveBar(onSave: () -> Unit) {
         Button(
             onClick = onSave,
             modifier = Modifier
+                // The bar is a custom bottom bar, so Scaffold does not inset it;
+                // lift the button clear of 3-button system navigation.
+                .navigationBarsPadding()
                 .fillMaxWidth()
                 .padding(
                     start = ShellDimens.screenPadding,

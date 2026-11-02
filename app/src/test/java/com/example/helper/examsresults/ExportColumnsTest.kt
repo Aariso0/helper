@@ -57,8 +57,29 @@ class ExportColumnsTest {
         assertTrue(text.contains("Total Max"))
         assertTrue(text.contains("Percentage"))
         assertTrue(text.contains("Result"))
-        assertTrue("total starts the computed block", text.contains("<f>=SUM(C2:D2)</f>"))
+        assertTrue("total starts the computed block", text.contains("<f>SUM(D2:E2)</f>"))
         assertTrue("total max is a value", text.contains("<v>150</v>"))
+    }
+
+    @Test
+    fun `an emptied layout stays empty instead of restoring the defaults`() {
+        val stored = ExportColumnDefaults.forStorage(emptyList())
+
+        assertTrue(ExportColumnDefaults.effective(stored).isEmpty())
+    }
+
+    @Test
+    fun `deleting every computed column exports only the student columns`() {
+        val entries = workbookEntries(emptyList())
+        val results = entries["xl/worksheets/sheet1.xml"].orEmpty() +
+            entries["xl/sharedStrings.xml"].orEmpty()
+
+        assertTrue(results.contains("Roll No."))
+        assertTrue(results.contains("Student Name"))
+        assertFalse(results.contains("Total Obtained"))
+        assertFalse(results.contains("Result"))
+        // No Result column means no summary either: its bands count verdicts.
+        assertFalse("no summary without a Result column", entries.containsKey("xl/worksheets/sheet2.xml"))
     }
 
     @Test
@@ -74,7 +95,7 @@ class ExportColumnsTest {
         val sheet = all["xl/worksheets/sheet1.xml"].orEmpty()
 
         assertTrue("custom header", all.values.joinToString("\n").contains("x"))
-        assertTrue("custom formula", sheet.contains("<f>=C2+D2</f>"))
+        assertTrue("custom formula", sheet.contains("<f>D2+E2</f>"))
     }
 
     @Test
@@ -87,13 +108,13 @@ class ExportColumnsTest {
         )
         val sheet = sheet(reordered)
 
-        // E Percentage, F Total Obtained, G Total Max, H Result.
+        // F Percentage, G Total Obtained, H Total Max, I Result.
         assertTrue(
             "percentage now points at F and G",
-            sheet.contains("<f>=IF(G2=0,0,F2/G2*100)</f>"),
+            sheet.contains("<f>IF(H2=0,0,G2/H2*100)</f>"),
         )
-        assertTrue("total moved to F", sheet.contains("<f>=SUM(C2:D2)</f>"))
-        assertTrue("the colour rule follows the Result column", sheet.contains("""sqref="H2:H2""""))
+        assertTrue("total moved to F", sheet.contains("<f>SUM(D2:E2)</f>"))
+        assertTrue("the colour rule follows the Result column", sheet.contains("""sqref="I2:I2""""))
     }
 
     @Test
@@ -107,8 +128,8 @@ class ExportColumnsTest {
         )
         val sheet = sheet(reordered)
 
-        assertTrue("Result is now E", sheet.contains("""sqref="E2:E2""""))
-        assertTrue("and the pass rule is still there", sheet.contains("""<formula>"PASS"</formula>"""))
+        assertTrue("Result is now F", sheet.contains("""sqref="F2:F2""""))
+        assertTrue("and the pass rule is still there", sheet.contains("""<formula>"Fail"</formula>"""))
     }
 
     @Test
@@ -131,8 +152,8 @@ class ExportColumnsTest {
         )
         val sheet = sheet(columns)
 
-        assertTrue("x lands in I", sheet.contains("<f>=C2*2</f>"))
-        assertTrue("y references x's column", sheet.contains("<f>=I2+1</f>"))
+        assertTrue("x lands in J", sheet.contains("<f>D2*2</f>"))
+        assertTrue("y references x's column", sheet.contains("<f>J2+1</f>"))
     }
 
     @Test
@@ -146,7 +167,7 @@ class ExportColumnsTest {
         )
         val sheet = sheet(ExportColumnDefaults.columns() + pasted)
 
-        assertTrue(sheet.contains("<f>=SUM(C2:D2)</f>"))
+        assertTrue(sheet.contains("<f>SUM(C2:D2)</f>"))
     }
 
     @Test
@@ -235,6 +256,120 @@ class ExportColumnsTest {
         val issues = ExportFormulaEngine.validate(ExportColumnDefaults.columns() + bad, subjects)
 
         assertTrue(issues.single().message.contains("Parentheses"))
+    }
+
+    @Test
+    fun `plain words are blocked before they reach the sheet`() {
+        val bad = ExportColumn(
+            id = "custom-words",
+            label = "Bonus",
+            kind = ExportColumnKind.CUSTOM,
+            formula = "total marks please",
+            sortOrder = 4,
+        )
+        val issues = ExportFormulaEngine.validate(ExportColumnDefaults.columns() + bad, subjects)
+
+        assertEquals("Bonus", issues.single().columnLabel)
+        assertTrue(issues.single().message.contains("Unknown name"))
+    }
+
+    @Test
+    fun `a pasted formula with a bare word is blocked`() {
+        val bad = ExportColumn(
+            id = "custom-pasted-word",
+            label = "Bonus",
+            kind = ExportColumnKind.CUSTOM,
+            formula = "=SUM(marks)",
+            sortOrder = 4,
+        )
+        val issues = ExportFormulaEngine.validate(ExportColumnDefaults.columns() + bad, subjects)
+
+        assertTrue(issues.single().message.contains("Unknown name"))
+    }
+
+    @Test
+    fun `a pasted formula that still uses a field explains what to do`() {
+        val bad = ExportColumn(
+            id = "custom-pasted-field",
+            label = "Bonus",
+            kind = ExportColumnKind.CUSTOM,
+            formula = "=SUM({Math})",
+            sortOrder = 4,
+        )
+        val issues = ExportFormulaEngine.validate(ExportColumnDefaults.columns() + bad, subjects)
+
+        val message = issues.single().message
+        assertTrue(message.contains("{Math}"))
+        assertTrue(message.contains("Remove the “=”"))
+    }
+
+    @Test
+    fun `an Excel error value is blocked`() {
+        val bad = ExportColumn(
+            id = "custom-error",
+            label = "Bonus",
+            kind = ExportColumnKind.CUSTOM,
+            formula = "=#REF!+1",
+            sortOrder = 4,
+        )
+        val issues = ExportFormulaEngine.validate(ExportColumnDefaults.columns() + bad, subjects)
+
+        assertTrue(issues.single().message.contains("error value"))
+    }
+
+    @Test
+    fun `a missing function argument is blocked`() {
+        val bad = ExportColumn(
+            id = "custom-comma",
+            label = "Bonus",
+            kind = ExportColumnKind.CUSTOM,
+            formula = "SUM({Math},,{Science})",
+            sortOrder = 4,
+        )
+        val issues = ExportFormulaEngine.validate(ExportColumnDefaults.columns() + bad, subjects)
+
+        assertTrue(issues.single().message.contains("argument is missing"))
+    }
+
+    @Test
+    fun `a formula with no field still exports but gets a heads-up`() {
+        val constant = ExportColumn(
+            id = "custom-constant",
+            label = "Grace",
+            kind = ExportColumnKind.CUSTOM,
+            formula = "5+5",
+            sortOrder = 4,
+        )
+
+        val issues = ExportFormulaEngine.validate(ExportColumnDefaults.columns() + constant, subjects)
+
+        assertTrue(issues.isEmpty())
+        val notice = ExportFormulaEngine.notice(constant, ExportColumnDefaults.columns() + constant, subjects)
+        assertTrue(notice.orEmpty().contains("same value"))
+    }
+
+    @Test
+    fun `every default column passes the formula check`() {
+        val columns = ExportColumnDefaults.columns()
+
+        columns.forEach { column ->
+            val error = ExportFormulaEngine.blockingError(column, columns, subjects)
+            assertTrue("${column.label}: $error", error == null)
+            assertTrue(ExportFormulaEngine.notice(column, columns, subjects) == null)
+        }
+    }
+
+    @Test
+    fun `a real pasted formula passes`() {
+        val good = ExportColumn(
+            id = "custom-pasted-good",
+            label = "Bonus",
+            kind = ExportColumnKind.CUSTOM,
+            formula = "=IF(C2>=35,ROUND(C2*0.1,1),0)",
+            sortOrder = 4,
+        )
+
+        assertTrue(ExportFormulaEngine.blockingError(good, ExportColumnDefaults.columns() + good, subjects) == null)
     }
 
     private fun sheet(columns: List<ExportColumn>): String =

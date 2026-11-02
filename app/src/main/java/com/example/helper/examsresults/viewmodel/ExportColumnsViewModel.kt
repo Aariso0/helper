@@ -23,8 +23,8 @@ data class ExportColumnsUiState(
 
 /**
  * Owns the teacher's ordered result-sheet columns. Reads fall back to the
- * built-in defaults when the table is empty; the first edit writes the whole
- * list, so the order the teacher sees is the order that gets saved.
+ * built-in defaults only when the table was never configured; the first edit
+ * writes the whole list, so the order the teacher sees is the order saved.
  */
 class ExportColumnsViewModel(
     private val examId: String,
@@ -84,19 +84,14 @@ class ExportColumnsViewModel(
         )
     }
 
-    /** Only custom columns can be deleted; built-ins are reset, not removed. */
+    /** Any column, built-in included, can be deleted now. */
     fun delete(column: ExportColumn) {
-        if (ExportColumnDefaults.isBuiltIn(column)) return
         persist(_uiState.value.columns.filterNot { it.id == column.id })
-    }
-
-    /** Empty table = defaults, so a reset is a delete-all. */
-    fun resetToDefaults() {
-        viewModelScope.launch { exportColumnRepository.reset() }
     }
 
     private fun persist(columns: List<ExportColumn>) {
         val ordered = columns.mapIndexed { index, column -> column.copy(sortOrder = index) }
-        viewModelScope.launch { exportColumnRepository.replaceAll(ordered) }
+        val rows = ExportColumnDefaults.forStorage(ordered)
+        viewModelScope.launch { exportColumnRepository.replaceAll(rows) }
     }
 }
