@@ -13,14 +13,17 @@ import com.example.helper.coredata.entity.ExportColumn
 import com.example.helper.examsresults.util.StudentResult
 import java.io.File
 import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
- * Prints the results sheet as a PDF: landscape A4, the header repeated on
- * every page, a thin border around every cell, and "Fail" in bold italic — the
- * same reading a printed Excel export gives, without needing Excel.
+ * Prints the results sheet as a PDF: portrait A4, the header repeated on every
+ * page, a thin border around every cell, and "Fail" in bold italic — the same
+ * reading a printed Excel export gives, without needing Excel.
+ *
+ * A class can have more subject columns than portrait A4 can show legibly, so
+ * the table continues on later pages: S.No., Roll No. and Student Name are
+ * repeated, then the next slice of subject columns. The computed Total / Total
+ * Max / Percentage / Result columns keep their place at the end, so they land
+ * on the final page. See [ExamPdfTable.sections].
  *
  * Uses the platform's `PdfDocument` like the announcement PDF store, so no
  * third-party renderer enters the build. Dependent columns the device cannot
@@ -31,16 +34,24 @@ import java.util.Locale
  */
 object ExamPdfWriter {
 
-    // A4 in PostScript points (1/72"), the unit PdfDocument uses.
-    private const val PAGE_WIDTH = 842
-    private const val PAGE_HEIGHT = 595
-    private const val MARGIN = 28f
+    // A4 portrait in PostScript points (1/72"), the unit PdfDocument uses.
+    private const val PAGE_WIDTH = 595
+    private const val PAGE_HEIGHT = 842
+    private const val MARGIN = 24f
     private const val TITLE_BLOCK = 46f
-    private const val HEADER_HEIGHT = 22f
-    private const val ROW_HEIGHT = 20f
+    private const val HEADER_HEIGHT = 30f
+    private const val ROW_HEIGHT = 18f
     private const val FOOTER_HEIGHT = 18f
     private const val CELL_PADDING = 4f
-    private const val MIN_DATA_WIDTH = 42f
+
+    // The name is the column a teacher scans, so it starts wide and grows into
+    // whatever the data columns do not need. Data columns cap at 120 pt, so the
+    // name is always the widest column on the page.
+    private const val SERIAL_WIDTH = 28f
+    private const val ROLL_WIDTH = 40f
+    private const val MIN_NAME_WIDTH = 170f
+    private const val MIN_DATA_WIDTH = 50f
+    private const val MAX_DATA_WIDTH = 120f
 
     private val TITLE_PAINT = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
@@ -54,7 +65,7 @@ object ExamPdfWriter {
     }
     private val HEADER_PAINT = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-        textSize = 9f
+        textSize = 8.5f
         color = Color.rgb(32, 33, 36)
     }
     private val CELL_PAINT = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -80,6 +91,7 @@ object ExamPdfWriter {
         subjects: List<ExamSubject>,
         results: List<StudentResult>,
         columns: List<ExportColumn> = ExportColumnDefaults.columns(),
+        className: String = "",
     ): File {
         val table = ExamPdfTableBuilder.build(subjects, results, columns)
         val dir = File(context.cacheDir, "exams").apply { mkdirs() }
@@ -88,7 +100,7 @@ object ExamPdfWriter {
 
         val document = PdfDocument()
         try {
-            render(document, table, examName)
+            render(document, table, examName, className)
             FileOutputStream(file).use { out -> document.writeTo(out) }
         } finally {
             document.close()
@@ -96,44 +108,77 @@ object ExamPdfWriter {
         return file
     }
 
-    private fun render(document: PdfDocument, table: ExamPdfTable, examName: String) {
-        val widths = columnWidths(table.headers.size)
-        val bodyTop = MARGIN + TITLE_BLOCK + HEADER_HEIGHT
-        val bodyBottom = PAGE_HEIGHT - MARGIN - FOOTER_HEIGHT
-        val rowsPerPage = ((bodyBottom - bodyTop) / ROW_HEIGHT).toInt().coerceAtLeast(1)
-        val pages = if (table.rows.isEmpty()) listOf(emptyList()) else table.rows.chunked(rowsPerPage)
+    private fun render(
+        document: PdfDocument,
+        table: ExamPdfTable,
+        examName: String,
+        className: String,
+    ) {
+        // Without students there is nothing to split; one page carries the
+        // message and the identifying headers.
+        val sections = if (table.rows.isEmpty()) {
+            listOf(
+                ExamPdfSection(
+                    headers = table.headers.take(EXAM_PDF_FIXED_COLUMNS),
+                    rows = emptyList(),
+                ),
+            )
+        } else {
+            table.sections(columnsPerPage())
+        }
 
-        pages.forEachIndexed { index, rows ->
+        val rowsPerPage = rowsPerPage()
+        val pages = sections.flatMap { section ->
+            if (section.rows.isEmpty()) {
+                listOf(section to emptyList())
+            } else {
+                section.rows.chunked(rowsPerPage).map { rows -> section to rows }
+            }
+        }
+
+        pages.forEachIndexed { index, (section, rows) ->
             val page = document.startPage(
                 PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, index + 1).create(),
             )
-            drawPage(page.canvas, table, rows, widths, examName, index + 1, pages.size)
+            drawPage(
+                canvas = page.canvas,
+                section = section,
+                rows = rows,
+                widths = columnWidths(section.headers.size),
+                examName = examName,
+                className = className,
+                studentCount = table.rows.size,
+                pageNumber = index + 1,
+                pageCount = pages.size,
+            )
             document.finishPage(page)
         }
     }
 
     private fun drawPage(
         canvas: Canvas,
-        table: ExamPdfTable,
+        section: ExamPdfSection,
         rows: List<List<String>>,
         widths: FloatArray,
         examName: String,
+        className: String,
+        studentCount: Int,
         pageNumber: Int,
         pageCount: Int,
     ) {
         val left = MARGIN
         val right = PAGE_WIDTH - MARGIN
 
-        val title = TextUtils.ellipsize(examName, TITLE_PAINT, right - left, TextUtils.TruncateAt.END)
+        val heading = ExportHeading.title(examName, className)
+        val title = TextUtils.ellipsize(heading, TITLE_PAINT, right - left, TextUtils.TruncateAt.END)
         canvas.drawText(title, 0, title.length, left, MARGIN + 14f, TITLE_PAINT)
-        val subtitle = "Results · ${table.rows.size} student${if (table.rows.size == 1) "" else "s"}" +
-            " · ${today()}"
+        val subtitle = "Results · $studentCount student${if (studentCount == 1) "" else "s"}"
         val subtitleText = TextUtils.ellipsize(subtitle, SUBTITLE_PAINT, right - left, TextUtils.TruncateAt.END)
         canvas.drawText(subtitleText, 0, subtitleText.length, left, MARGIN + 32f, SUBTITLE_PAINT)
 
-        var top = MARGIN + TITLE_BLOCK
-        val headerBottom = top + HEADER_HEIGHT
-        drawRow(canvas, table.headers, widths, top, headerBottom, header = true)
+        val headerTop = MARGIN + TITLE_BLOCK
+        val headerBottom = headerTop + HEADER_HEIGHT
+        drawRow(canvas, section.headers, widths, headerTop, headerBottom, header = true)
 
         val footerText = "Page $pageNumber of $pageCount"
         val footerWidth = SUBTITLE_PAINT.measureText(footerText)
@@ -150,7 +195,7 @@ object ExamPdfWriter {
             return
         }
 
-        top = headerBottom
+        var top = headerBottom
         rows.forEachIndexed { rowIndex, row ->
             val bottom = top + ROW_HEIGHT
             drawRow(canvas, row, widths, top, bottom, header = false)
@@ -176,26 +221,67 @@ object ExamPdfWriter {
             val right = left + width
             canvas.drawRect(left, top, right, bottom, BORDER_PAINT)
 
-            val paint = when {
-                header -> HEADER_PAINT
-                isFail(raw) -> FAIL_PAINT
-                else -> CELL_PAINT
-            }
-            val text = TextUtils.ellipsize(
-                raw,
-                paint,
-                (width - 2 * CELL_PADDING).coerceAtLeast(1f),
-                TextUtils.TruncateAt.END,
-            )
-            val baseline = top + (bottom - top - (paint.descent() + paint.ascent())) / 2f
-            val x = if (header || !isNumeric(raw)) {
-                left + CELL_PADDING
+            if (header) {
+                drawHeaderCell(canvas, raw, left, top, bottom, width)
             } else {
-                right - CELL_PADDING - paint.measureText(text, 0, text.length)
+                val paint = if (isFail(raw)) FAIL_PAINT else CELL_PAINT
+                val text = TextUtils.ellipsize(
+                    raw,
+                    paint,
+                    (width - 2 * CELL_PADDING).coerceAtLeast(1f),
+                    TextUtils.TruncateAt.END,
+                )
+                val baseline = top + (bottom - top - (paint.descent() + paint.ascent())) / 2f
+                val x = if (isNumeric(raw)) {
+                    right - CELL_PADDING - paint.measureText(text, 0, text.length)
+                } else {
+                    left + CELL_PADDING
+                }
+                canvas.drawText(text, 0, text.length, x, baseline, paint)
             }
-            canvas.drawText(text, 0, text.length, x, baseline, paint)
             left = right
         }
+    }
+
+    /**
+     * A narrow subject column still has to say "Total Obtained": the header
+     * wraps onto a second line instead of being squeezed into an ellipsis.
+     */
+    private fun drawHeaderCell(
+        canvas: Canvas,
+        text: String,
+        left: Float,
+        top: Float,
+        bottom: Float,
+        width: Float,
+    ) {
+        val maxWidth = (width - 2 * CELL_PADDING).coerceAtLeast(1f)
+        val lines = if (HEADER_PAINT.measureText(text) <= maxWidth) {
+            listOf(text)
+        } else {
+            wrapTwoLines(text, HEADER_PAINT, maxWidth)
+        }
+        val lineHeight = HEADER_PAINT.descent() - HEADER_PAINT.ascent()
+        var baseline = top + (bottom - top - lineHeight * lines.size) / 2f - HEADER_PAINT.ascent()
+        lines.forEach { line ->
+            val clipped = TextUtils.ellipsize(line, HEADER_PAINT, maxWidth, TextUtils.TruncateAt.END)
+            canvas.drawText(clipped, 0, clipped.length, left + CELL_PADDING, baseline, HEADER_PAINT)
+            baseline += lineHeight
+        }
+    }
+
+    private fun wrapTwoLines(text: String, paint: TextPaint, maxWidth: Float): List<String> {
+        val words = text.split(' ')
+        var firstLine = ""
+        var index = 0
+        while (index < words.size) {
+            val candidate = if (firstLine.isEmpty()) words[index] else "$firstLine ${words[index]}"
+            if (firstLine.isNotEmpty() && paint.measureText(candidate) > maxWidth) break
+            firstLine = candidate
+            index++
+        }
+        val rest = words.drop(index).joinToString(" ")
+        return if (rest.isEmpty()) listOf(firstLine) else listOf(firstLine, rest)
     }
 
     /** Numbers and percentages line up on the right; words on the left. */
@@ -204,35 +290,35 @@ object ExamPdfWriter {
     private fun isFail(value: String): Boolean = value.equals("Fail", ignoreCase = true)
 
     /**
-     * S.No. is narrow, the name is wide, and the subject/computed columns share
-     * what is left; if that leaves them too narrow the name gives ground first.
-     * A sheet with many subjects is scaled down rather than overflowing.
+     * How many data columns share one portrait page before the next slice needs
+     * its own page. The identifying columns and a wide name always stay.
+     */
+    private fun columnsPerPage(): Int {
+        val availableForData = usableWidth() - SERIAL_WIDTH - ROLL_WIDTH - MIN_NAME_WIDTH
+        return (availableForData / MIN_DATA_WIDTH).toInt().coerceAtLeast(1)
+    }
+
+    /**
+     * S.No. is narrow, the name is the widest column, and the data columns get
+     * the rest, between [MIN_DATA_WIDTH] and [MAX_DATA_WIDTH]. Leftover space
+     * goes to the name, which is what a teacher reads first.
      */
     private fun columnWidths(columnCount: Int): FloatArray {
-        val usable = PAGE_WIDTH - 2 * MARGIN
-        val fixedRoll = 46f
-        val fixedSerial = 34f
-        var nameWidth = 150f
-        val dataCount = (columnCount - 3).coerceAtLeast(0)
-
-        if (dataCount > 0) {
-            val spare = usable - fixedSerial - fixedRoll - nameWidth
-            if (spare / dataCount < MIN_DATA_WIDTH) {
-                nameWidth = (usable - fixedSerial - fixedRoll - MIN_DATA_WIDTH * dataCount)
-                    .coerceIn(90f, nameWidth)
-            }
-        }
-
+        val usable = usableWidth()
+        val dataCount = (columnCount - EXAM_PDF_FIXED_COLUMNS).coerceAtLeast(0)
+        val availableForData = usable - SERIAL_WIDTH - ROLL_WIDTH - MIN_NAME_WIDTH
         val dataWidth = if (dataCount == 0) {
             0f
         } else {
-            ((usable - fixedSerial - fixedRoll - nameWidth) / dataCount).coerceAtLeast(20f)
+            (availableForData / dataCount).coerceIn(MIN_DATA_WIDTH, MAX_DATA_WIDTH)
         }
+        val nameWidth = (usable - SERIAL_WIDTH - ROLL_WIDTH - dataWidth * dataCount)
+            .coerceAtLeast(MIN_NAME_WIDTH)
 
         val widths = FloatArray(columnCount) { index ->
             when (index) {
-                0 -> fixedSerial
-                1 -> fixedRoll
+                0 -> SERIAL_WIDTH
+                1 -> ROLL_WIDTH
                 2 -> nameWidth
                 else -> dataWidth
             }
@@ -246,8 +332,13 @@ object ExamPdfWriter {
         return widths
     }
 
-    private fun today(): String =
-        SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date())
+    private fun rowsPerPage(): Int {
+        val bodyTop = MARGIN + TITLE_BLOCK + HEADER_HEIGHT
+        val bodyBottom = PAGE_HEIGHT - MARGIN - FOOTER_HEIGHT
+        return ((bodyBottom - bodyTop) / ROW_HEIGHT).toInt().coerceAtLeast(1)
+    }
+
+    private fun usableWidth(): Float = PAGE_WIDTH - 2 * MARGIN
 
     private val NUMBER = Regex("""-?\d+(\.\d+)?%?""")
 }

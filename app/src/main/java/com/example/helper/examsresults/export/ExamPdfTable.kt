@@ -13,6 +13,38 @@ internal data class ExamPdfTable(
 )
 
 /**
+ * One readable column page: the three identifying columns plus a slice of the
+ * data columns. Together the sections carry every column exactly once.
+ */
+internal data class ExamPdfSection(
+    val headers: List<String>,
+    val rows: List<List<String>>,
+)
+
+/** S.No., Roll No. and Student Name; repeated on every column page. */
+internal const val EXAM_PDF_FIXED_COLUMNS = 3
+
+/**
+ * Splits a wide table into portrait-friendly column pages. The identifying
+ * columns are repeated so a continuation page still says whose marks it shows,
+ * and the data columns keep their order — the computed Total / Total Max /
+ * Percentage / Result columns therefore end up on the last page.
+ */
+internal fun ExamPdfTable.sections(columnsPerPage: Int): List<ExamPdfSection> {
+    val dataColumns = headers.indices.drop(EXAM_PDF_FIXED_COLUMNS)
+    if (dataColumns.isEmpty()) return listOf(ExamPdfSection(headers = headers, rows = rows))
+
+    val pageSize = columnsPerPage.coerceAtLeast(1)
+    return dataColumns.chunked(pageSize).map { chunk ->
+        val indices = (0 until EXAM_PDF_FIXED_COLUMNS) + chunk
+        ExamPdfSection(
+            headers = indices.map { headers[it] },
+            rows = rows.map { row -> indices.map { row[it] } },
+        )
+    }
+}
+
+/**
  * Turns the results into the strings a PDF sheet shows. Kept free of Android
  * imports so the numbering, the Pass/Fail words and the column choice are
  * unit-tested without a device.

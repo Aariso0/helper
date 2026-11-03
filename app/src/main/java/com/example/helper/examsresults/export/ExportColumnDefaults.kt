@@ -25,8 +25,14 @@ object ExportColumnDefaults {
     const val CLEARED_LAYOUT_ID = "builtin-layout-cleared"
 
     const val TOTAL_OBTAINED_TEMPLATE = "SUM({All Marks})"
+
+    /**
+     * A share, not a percentage out of 100: the exported cell is formatted
+     * `0.00%`, so `0.8` reads as `80.00%` in Excel and keeps working in band
+     * formulas (`>=33%`) and class averages.
+     */
     const val PERCENTAGE_TEMPLATE =
-        "IF({Total Max}=0,0,{Total Obtained}/{Total Max}*100)"
+        "IF({Total Max}=0,0,{Total Obtained}/{Total Max})"
     const val RESULT_TEMPLATE =
         "IF(COUNT({All Marks})=0,\"\",IF(AND({All Pass Checks}),\"Pass\",\"Fail\"))"
 

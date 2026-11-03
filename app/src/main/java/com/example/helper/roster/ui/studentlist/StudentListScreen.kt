@@ -62,6 +62,7 @@ import com.example.helper.R
 import com.example.helper.coredata.entity.Student
 import com.example.helper.motion.MotionKeys
 import com.example.helper.motion.pressScale
+import com.example.helper.motion.sharedBoundsIfPossible
 import com.example.helper.motion.sharedElementIfPossible
 import com.example.helper.nav.Routes
 import com.example.helper.roster.viewmodel.studentListViewModel
@@ -269,6 +270,10 @@ private fun StudentRow(
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.sharedBoundsIfPossible(
+                        key = MotionKeys.studentName(student.id),
+                        animatedVisibilityScope = sharedScope,
+                    ),
                 )
                 val detail = student.rollNumber?.let { "Roll $it" }.orEmpty()
                 if (detail.isNotEmpty()) {

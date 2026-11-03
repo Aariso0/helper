@@ -58,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.helper.coredata.entity.AttendanceStatus
 import com.example.helper.motion.MotionKeys
+import com.example.helper.motion.sharedBoundsIfPossible
 import com.example.helper.motion.sharedElementIfPossible
 import com.example.helper.examsresults.ui.StudentExamHistory
 import com.example.helper.roster.viewmodel.studentPageViewModel
@@ -206,6 +207,10 @@ fun StudentPageScreen(
                 Text(
                     text = student.name,
                     style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.sharedBoundsIfPossible(
+                        key = MotionKeys.studentName(student.id),
+                        animatedVisibilityScope = sharedScope,
+                    ),
                 )
                 state.schoolClass?.let { schoolClass ->
                     val subtitle = listOfNotNull(schoolClass.subject, schoolClass.year)

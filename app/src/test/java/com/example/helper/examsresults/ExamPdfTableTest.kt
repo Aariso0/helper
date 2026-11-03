@@ -6,6 +6,8 @@ import com.example.helper.coredata.entity.ExportColumnKind
 import com.example.helper.coredata.entity.Student
 import com.example.helper.examsresults.export.ExamPdfTableBuilder
 import com.example.helper.examsresults.export.ExportColumnDefaults
+import com.example.helper.examsresults.export.ExportHeading
+import com.example.helper.examsresults.export.sections
 import com.example.helper.examsresults.util.StudentResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -135,5 +137,51 @@ class ExamPdfTableTest {
         val table = ExamPdfTableBuilder.build(subjects, listOf(asha), columns)
 
         assertFalse(table.headers.contains("Percentage"))
+    }
+
+    @Test
+    fun `column pages repeat S No, roll and name and keep the computed columns last`() {
+        val sixSubjects = (1..6).map { index ->
+            ExamSubject(
+                id = "s$index",
+                examId = "e1",
+                name = "Subject $index",
+                maxMarks = 100,
+                passMarks = 33,
+            )
+        }
+        val table = ExamPdfTableBuilder.build(sixSubjects, listOf(asha))
+
+        // S.No. / Roll No. / Name + six subjects + four computed columns.
+        assertEquals(13, table.headers.size)
+        val pages = table.sections(columnsPerPage = 6)
+
+        assertEquals(2, pages.size)
+        pages.forEach { page ->
+            assertEquals(listOf("S.No.", "Roll No.", "Student Name"), page.headers.take(3))
+            assertTrue("the name is repeated", page.headers.contains("Student Name"))
+            assertEquals(table.rows.size, page.rows.size)
+            assertEquals("Asha", page.rows.single()[2])
+        }
+        assertEquals(
+            listOf("Total Obtained", "Total Max", "Percentage", "Result"),
+            pages.last().headers.drop(3),
+        )
+    }
+
+    @Test
+    fun `a table with no data columns is one page`() {
+        val table = ExamPdfTableBuilder.build(emptyList(), listOf(asha), emptyList())
+        val pages = table.sections(columnsPerPage = 6)
+
+        assertEquals(1, pages.size)
+        assertEquals(listOf("S.No.", "Roll No.", "Student Name"), pages.single().headers)
+    }
+
+    @Test
+    fun `the pdf heading names the exam and the class`() {
+        assertEquals("Half Yearly — Class 5-A", ExportHeading.title("Half Yearly", "5-A"))
+        assertEquals("Half Yearly", ExportHeading.title("Half Yearly", ""))
+        assertEquals("Class 5-A", ExportHeading.title("", "5-A"))
     }
 }

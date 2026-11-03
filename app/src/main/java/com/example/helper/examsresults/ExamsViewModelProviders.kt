@@ -61,6 +61,7 @@ fun examResultViewModel(examId: String, classId: String): ExamResultViewModel {
             app.container.studentRepository,
             classId,
             app.container.exportColumnRepository,
+            app.container.classRepository,
         )
     }
 }

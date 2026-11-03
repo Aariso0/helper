@@ -5,8 +5,8 @@
 # Teacher Classroom App (Android)
 
 > **Status:** Build phase complete — 10 of 11 modules built. Local, on-device prototype.  
-> **Version:** 1.2.0  
-> **Last updated:** 2026-11-02  
+> **Version:** 1.2.1  
+> **Last updated:** 2026-11-03  
 > **Focus:** Fast, efficient, one-handed UI that beats Excel for daily classroom tasks.  
 > **Server / cloud:** Not built (v3 placeholder only). Fully offline. Future server integration is planned in [modules/server-comms.md](modules/server-comms.md) as a self-hostable option for school/local servers (no reliance on third-party cloud providers).
 
@@ -91,9 +91,9 @@ Every decision is judged by one question: **Does this save the teacher time or t
 - Fast one-subject-at-a-time mark entry with numeric keyboard
 - Auto-calculated totals, percentages, pass/fail
 - Per-student analysis showing failed subjects
-- Excel export with a running **S.No.** column, live formulas, thin borders and a white sheet ("Fail" bold italic, never filled)
-- A second **Summary** sheet linked to the results — registered, appeared, passed, pass %, average and the 0-32 … 95-ABOVE score bands, all recalculating from the marks
-- PDF export (landscape A4, repeated header, page numbers) for printing or sharing
+- Excel export with a running **S.No.** column, live formulas, thin borders and a white sheet ("Fail" bold italic, never filled); percentages are stored as fractions and shown as `0.00%`
+- A second **Summary** sheet laid out like the teacher's mark-slip — one row per subject (`HINDI (40)`) with registered, appeared, passed (at the configured pass mark), pass %, subject average and the fixed 33/50/60/75/90/95 % score bands, followed by an `OVER ALL CLASS` row and a single class-wise block, all recalculating from the marks
+- PDF export (portrait A4, exam + class heading, repeated Name column, page numbers) for printing or sharing
 - Configurable export columns (reorder, add custom formula columns, delete built-ins)
 - Add/edit/delete exams and subjects with confirmations
 

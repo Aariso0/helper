@@ -69,7 +69,7 @@ class ExportColumnsTest {
     }
 
     @Test
-    fun `deleting every computed column exports only the student columns`() {
+    fun `deleting every computed column still exports the marks-only summary`() {
         val entries = workbookEntries(emptyList())
         val results = entries["xl/worksheets/sheet1.xml"].orEmpty() +
             entries["xl/sharedStrings.xml"].orEmpty()
@@ -78,8 +78,12 @@ class ExportColumnsTest {
         assertTrue(results.contains("Student Name"))
         assertFalse(results.contains("Total Obtained"))
         assertFalse(results.contains("Result"))
-        // No Result column means no summary either: its bands count verdicts.
-        assertFalse("no summary without a Result column", entries.containsKey("xl/worksheets/sheet2.xml"))
+        // The summary's per-subject analysis reads only names and marks, so it
+        // is still worth writing; the verdict cells are the ones left blank.
+        val summary = entries["xl/worksheets/sheet2.xml"].orEmpty()
+        assertTrue(summary.contains("<f>COUNTA('Results'!${'$'}C$2:${'$'}C$2)</f>"))
+        assertTrue(summary.contains("<f>MAX(C3:C4)</f>"))
+        assertFalse(summary.contains(""","Pass")</f>"""))
     }
 
     @Test
@@ -111,7 +115,7 @@ class ExportColumnsTest {
         // F Percentage, G Total Obtained, H Total Max, I Result.
         assertTrue(
             "percentage now points at F and G",
-            sheet.contains("<f>IF(H2=0,0,G2/H2*100)</f>"),
+            sheet.contains("<f>IF(H2=0,0,G2/H2)</f>"),
         )
         assertTrue("total moved to F", sheet.contains("<f>SUM(D2:E2)</f>"))
         assertTrue("the colour rule follows the Result column", sheet.contains("""sqref="I2:I2""""))

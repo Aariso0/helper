@@ -1,8 +1,10 @@
 package com.example.helper.examsresults
 
 import com.example.helper.coredata.entity.ExamSubject
+import com.example.helper.coredata.entity.ExportColumnKind
 import com.example.helper.coredata.entity.Student
 import com.example.helper.examsresults.export.ExamExcelWriter
+import com.example.helper.examsresults.export.ExportColumnDefaults
 import com.example.helper.examsresults.util.StudentResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,8 +16,9 @@ import java.util.zip.ZipInputStream
 /**
  * The export is the teacher's handoff to Excel, so it must be a real workbook:
  * live formulas, numeric cells, blank cells for unentered marks, a plain
- * pass / bold-italic fail Result column, and a thin border on every used cell
- * so a printed copy has clean lines.
+ * pass / bold-italic fail Result column, a thin border on every used cell, and
+ * a horizontal analysis block whose percentages are stored as shares and
+ * displayed with a real `0.00%` number format.
  */
 class ExamExcelWriterTest {
 
@@ -47,7 +50,7 @@ class ExamExcelWriterTest {
     fun `workbook carries live formulas and numeric cells`() {
         val sheet = entries(workbook())["xl/worksheets/sheet1.xml"].orEmpty()
         assertTrue("total formula", sheet.contains("<f>SUM(D2:E2)</f>"))
-        assertTrue("percentage formula", sheet.contains("<f>IF(G2=0,0,F2/G2*100)</f>"))
+        assertTrue("percentage is a share, not out of 100", sheet.contains("<f>IF(G2=0,0,F2/G2)</f>"))
         assertTrue("pass formula", sheet.contains(RESULT_FORMULA))
         assertTrue("numeric marks are not text", sheet.contains("<v>80</v>") && sheet.contains("<v>40</v>"))
         assertTrue("no stale empty dimension", !sheet.contains("""<dimension ref="A1" />"""))
@@ -187,39 +190,65 @@ class ExamExcelWriterTest {
     }
 
     @Test
-    fun `the summary sheet is a live formula copy of the results, not numbers`() {
-        val summary = entries(workbook())["xl/worksheets/sheet2.xml"].orEmpty()
-        val book = entries(workbook())["xl/sharedStrings.xml"].orEmpty()
+    fun `the summary is a horizontal live block with a subject row per subject`() {
+        val all = entries(workbook())
+        val summary = all["xl/worksheets/sheet2.xml"].orEmpty()
+        val shared = all["xl/sharedStrings.xml"].orEmpty()
 
-        assertTrue("the row labels are there", book.contains("REGISTERED") && book.contains("95-ABOVE"))
-        assertTrue("registered counts the names", summary.contains("<f>COUNTA('Results'!C2:C2)</f>"))
+        assertTrue("the heading names the exam and class", shared.contains("Mid Term — Class 5-A"))
+        assertTrue("subject rows carry name and max", shared.contains("Math (100)") && shared.contains("Science (50)"))
+        assertTrue("overall row", shared.contains("OVER ALL CLASS"))
+        assertTrue("class-wise block", shared.contains("CLASS-WISE"))
+        assertTrue("registered counts names", summary.contains("<f>COUNTA('Results'!${'$'}C$2:${'$'}C$2)</f>"))
         assertTrue(
-            "appeared is the rows with a verdict",
-            summary.contains("""<f>COUNTIF('Results'!I2:I2,"Pass")+COUNTIF('Results'!I2:I2,"Fail")</f>"""),
-        )
-        assertTrue("passed", summary.contains("""<f>COUNTIF('Results'!I2:I2,"Pass")</f>"""))
-        assertTrue("pass share reads the summary's own cells", summary.contains("<f>IF(B4=0,0,B5*100/B4)</f>"))
-        assertTrue("average", summary.contains("<f>IF(B4=0,0,SUM('Results'!H2:H2)/B4)</f>"))
-        assertTrue(
-            "the low band stops at the first boundary",
-            summary.contains("""<f>B4-COUNTIF('Results'!H2:H2,"&gt;=33")</f>"""),
+            "appeared counts entered marks",
+            summary.contains("""<f>COUNTIF('Results'!${'$'}D$2:${'$'}D$2,"&gt;=0")</f>"""),
         )
         assertTrue(
-            "a middle band is a pair of thresholds",
+            "passed uses the configured pass mark",
+            summary.contains("""<f>COUNTIF('Results'!${'$'}D$2:${'$'}D$2,"&gt;=35")</f>"""),
+        )
+        assertTrue("pass share is a fraction", summary.contains("<f>IF(C3=0,0,D3/C3)</f>"))
+        assertTrue(
+            "subject average is a fraction of the max",
+            summary.contains("<f>IF(C3=0,0,SUM('Results'!${'$'}D$2:${'$'}D$2)/C3/100)</f>"),
+        )
+        assertTrue(
+            "the low band keeps the example's INT boundary",
+            summary.contains("""<f>COUNTIF('Results'!${'$'}D$2:${'$'}D$2,"&lt;"&amp;INT(100*33/100))</f>"""),
+        )
+        assertTrue(
+            "a band subtracts only the bands above it",
             summary.contains(
-                """<f>COUNTIF('Results'!H2:H2,"&gt;=60")-COUNTIF('Results'!H2:H2,"&gt;=75")</f>""",
+                """<f>COUNTIF('Results'!${'$'}D$2:${'$'}D$2,"&gt;="&amp;100*33/100)-I3-J3-K3-L3-M3</f>""",
             ),
         )
+        assertTrue("overall appeared is the max", summary.contains("<f>MAX(C3:C4)</f>"))
         assertTrue(
-            "the top band is open ended",
-            summary.contains("""<f>COUNTIF('Results'!H2:H2,"&gt;=95")</f>"""),
+            "overall passed counts the verdict",
+            summary.contains("""<f>COUNTIF('Results'!${'$'}I$2:${'$'}I$2,"Pass")</f>"""),
+        )
+        assertTrue(
+            "the class-wise block points at the overall row",
+            summary.contains("<f>F5</f>"),
         )
         assertFalse(
             "no number is frozen into the summary",
             Regex("""<c [^>]*><f>[^<]*</f><v>[^<]+</v></c>""").containsMatchIn(summary),
         )
-        assertTrue("a formula cell has an empty cached value", summary.contains("<f>COUNTA('Results'!C2:C2)</f><v></v>"))
-        assertTrue("the declared extent covers the table", summary.contains("""<dimension ref="A1:B14" />"""))
+        assertTrue("a formula cell has an empty cached value", summary.contains("<f>COUNTA('Results'!${'$'}C$2:${'$'}C$2)</f><v></v>"))
+        assertTrue("the declared extent covers the block", summary.contains("""<dimension ref="A1:Q5" />"""))
+    }
+
+    @Test
+    fun `percentage cells carry a real percent number format in the zip`() {
+        val all = entries(workbook())
+
+        assertEquals("results percentage", "10", numberFormatId(all, "xl/worksheets/sheet1.xml", "H2"))
+        assertEquals("subject pass share", "10", numberFormatId(all, "xl/worksheets/sheet2.xml", "E3"))
+        assertEquals("subject average", "10", numberFormatId(all, "xl/worksheets/sheet2.xml", "F3"))
+        assertEquals("class pass share", "10", numberFormatId(all, "xl/worksheets/sheet2.xml", "P5"))
+        assertEquals("class average", "10", numberFormatId(all, "xl/worksheets/sheet2.xml", "Q5"))
     }
 
     @Test
@@ -230,13 +259,70 @@ class ExamExcelWriterTest {
         val cells = Regex("""<c [^>]*>""").findAll(summary).map { it.value }.toList()
         assertTrue("the summary has cells", cells.isNotEmpty())
         assertTrue("every summary cell is bordered", cells.all { it.contains(""" s="""") })
+        assertTrue("the class-wise block is last", summary.contains("""<c r="Q5""""))
         assertFalse("no fill anywhere", all["xl/styles.xml"].orEmpty().contains("solid"))
+    }
+
+    @Test
+    fun `deleting the percentage column still writes the marks summary`() {
+        val columns = ExportColumnDefaults.columns()
+            .filterNot { it.kind == ExportColumnKind.PERCENTAGE }
+        val all = entries(
+            ExamExcelWriter.buildWorkbook(subjects, listOf(result), columns, "Mid Term", "5-A"),
+        )
+        val summary = all["xl/worksheets/sheet2.xml"].orEmpty()
+
+        assertTrue("the sheet is still there", all.containsKey("xl/worksheets/sheet2.xml"))
+        assertTrue("marks analysis still works", summary.contains("<f>MAX(C3:C4)</f>"))
+        assertTrue(
+            "the verdict moved to the Result column and still counts",
+            summary.contains("""<f>COUNTIF('Results'!${'$'}H$2:${'$'}H$2,"Pass")</f>"""),
+        )
+        assertFalse(
+            "the overall average has no percentage column to read",
+            summary.contains("<f>IF(C5=0,0,SUM('Results'!${'$'}H$2:${'$'}H$2)/C5)</f>"),
+        )
+    }
+
+    @Test
+    fun `deleting the result column leaves the verdict cells blank, not the whole summary`() {
+        val columns = ExportColumnDefaults.columns()
+            .filterNot { it.kind == ExportColumnKind.RESULT }
+        val all = entries(
+            ExamExcelWriter.buildWorkbook(subjects, listOf(result), columns, "Mid Term", "5-A"),
+        )
+        val summary = all["xl/worksheets/sheet2.xml"].orEmpty()
+
+        assertTrue("the sheet is still there", all.containsKey("xl/worksheets/sheet2.xml"))
+        assertTrue("overall appeared is still the max", summary.contains("<f>MAX(C3:C4)</f>"))
+        assertTrue("the share block still has its average", summary.contains("<f>F5</f>"))
+        assertFalse("no verdict column means no verdict count", summary.contains(""","Pass")</f>"""))
     }
 
     private val RESULT_FORMULA = """<f>IF(COUNT(D2:E2)=0,"",IF(AND(OR(D2="",D2&gt;=35),OR(E2="",E2&gt;=18)),"Pass","Fail"))</f>"""
 
-    private fun workbook(result: StudentResult = this.result): ByteArray =
-        ExamExcelWriter.buildWorkbook(subjects, listOf(result))
+    private fun workbook(
+        result: StudentResult = this.result,
+        className: String = "5-A",
+    ): ByteArray = ExamExcelWriter.buildWorkbook(
+        subjects = subjects,
+        results = listOf(result),
+        examName = "Mid Term",
+        className = className,
+    )
+
+    /** The `numFmtId` behind a cell's style, read from the written zip. */
+    private fun numberFormatId(entries: Map<String, String>, sheetPart: String, cell: String): String? {
+        val sheet = entries[sheetPart].orEmpty()
+        val cellTag = Regex("""<c r="$cell"[^>]*>""").find(sheet)?.value ?: return null
+        val styleIndex = Regex("""\bs="(\d+)"""")
+            .find(cellTag)?.groupValues?.get(1)?.toIntOrNull() ?: return null
+        val cellXfs = Regex("""<cellXfs[^>]*>(.*?)</cellXfs>""", RegexOption.DOT_MATCHES_ALL)
+            .find(entries["xl/styles.xml"].orEmpty())?.groupValues?.get(1) ?: return null
+        val styles = Regex("""<xf\b[^>]*>""").findAll(cellXfs).map { it.value }.toList()
+        val xf = styles.getOrNull(styleIndex) ?: return null
+        return Regex("""numFmtId="(\d+)"""").find(xf)?.groupValues?.get(1)
+    }
 
     private fun entries(bytes: ByteArray): Map<String, String> {
         val map = mutableMapOf<String, String>()

@@ -17,6 +17,7 @@ import com.gyanoba.kexcel.sheet.FormulaCellValue
 import com.gyanoba.kexcel.sheet.IntCellValue
 import com.gyanoba.kexcel.sheet.Sheet
 import com.gyanoba.kexcel.sheet.TextCellValue
+import com.gyanoba.kexcel.number_format.NumFormat
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -28,13 +29,14 @@ object ExamExcelWriter {
         subjects: List<ExamSubject>,
         results: List<StudentResult>,
         columns: List<ExportColumn> = ExportColumnDefaults.columns(),
+        className: String = "",
     ): File {
         val dir = File(context.cacheDir, "exams")
         if (!dir.exists()) dir.mkdirs()
         val safeName = examName.replace("[^A-Za-z0-9]".toRegex(), "_")
         val file = File(dir, "${safeName}_${System.currentTimeMillis()}.xlsx")
         FileOutputStream(file).use { out ->
-            out.write(buildWorkbook(subjects, results, columns))
+            out.write(buildWorkbook(subjects, results, columns, examName, className))
         }
         return file
     }
@@ -44,6 +46,8 @@ object ExamExcelWriter {
         subjects: List<ExamSubject>,
         results: List<StudentResult>,
         columns: List<ExportColumn> = ExportColumnDefaults.columns(),
+        examName: String = "",
+        className: String = "",
     ): ByteArray {
         // The caller passes the saved layout; an empty list means the teacher
         // deleted every computed column and is exported as-is.
@@ -114,6 +118,25 @@ object ExamExcelWriter {
             sheet.appendRow(row)
         }
 
+        val resultIndex = ordered.indexOfFirst { it.kind == ExportColumnKind.RESULT }
+        val percentageIndex = ordered.indexOfFirst { it.kind == ExportColumnKind.PERCENTAGE }
+
+        // Every percentage in the workbook is a share (`0.8`), so the cell
+        // format is what turns it into `80.00%`. A viewer that ignores the
+        // format still gets a usable number, and the band formulas compare
+        // against `33%` instead of `33`.
+        if (percentageIndex >= 0) {
+            val percentageCellColumn = computedStartCol + percentageIndex - 1
+            results.indices.forEach { index ->
+                setNumberFormat(
+                    sheet = sheet,
+                    columnIndex = percentageCellColumn,
+                    rowIndex = startRow - 1 + index,
+                    format = NumFormat.standard_10,
+                )
+            }
+        }
+
         sheet.setColumnWidth(0, 6.0)
         sheet.setColumnWidth(1, 10.0)
         sheet.setColumnWidth(2, 26.0)
@@ -140,19 +163,29 @@ object ExamExcelWriter {
         )
 
         val lastRow = if (results.isEmpty()) 0 else startRow + results.size - 1
-        val resultIndex = ordered.indexOfFirst { it.kind == ExportColumnKind.RESULT }
-        val percentageIndex = ordered.indexOfFirst { it.kind == ExportColumnKind.PERCENTAGE }
-        // The summary sheet is a set of live formulas over the results sheet, so
-        // it needs the two columns whose cells it points at. A layout that
-        // deleted either one still exports — just without a summary.
-        if (results.isNotEmpty() && resultIndex >= 0 && percentageIndex >= 0) {
+        // The summary repeats marks, names and (when present) the computed
+        // columns. A layout that deleted Percentage or Result still gets a
+        // summary: the marks-only cells are written and the impossible ones
+        // stay blank.
+        if (results.isNotEmpty() && subjects.isNotEmpty()) {
             writeSummarySheet(
                 excel = excel,
+                examName = examName,
+                className = className,
                 resultsSheet = RESULTS_SHEET_NAME,
                 firstRow = startRow,
                 lastRow = lastRow,
-                percentageColumn = ExportFormulaEngine.columnLetter(computedStartCol + percentageIndex),
-                resultColumn = ExportFormulaEngine.columnLetter(computedStartCol + resultIndex),
+                subjects = subjects,
+                percentageColumn = if (percentageIndex >= 0) {
+                    ExportFormulaEngine.columnLetter(computedStartCol + percentageIndex)
+                } else {
+                    null
+                },
+                resultColumn = if (resultIndex >= 0) {
+                    ExportFormulaEngine.columnLetter(computedStartCol + resultIndex)
+                } else {
+                    null
+                },
             )
         }
 
@@ -171,39 +204,88 @@ object ExamExcelWriter {
     }
 
     /**
-     * Writes the summary block on its own sheet: a title, a two-cell header,
-     * the linked formulas, and the same thin border every results cell gets.
+     * Writes the horizontal analysis block on its own sheet: a title with the
+     * exam and class, one row per subject, the `OVER ALL CLASS` row, and the
+     * single four-cell `CLASS-WISE` block to its right. Every number is a live
+     * formula over the results sheet; only the labels are text.
      */
     private fun writeSummarySheet(
         excel: Excel,
+        examName: String,
+        className: String,
         resultsSheet: String,
         firstRow: Int,
         lastRow: Int,
-        percentageColumn: String,
-        resultColumn: String,
+        subjects: List<ExamSubject>,
+        percentageColumn: String?,
+        resultColumn: String?,
     ) {
         val rows = ExamSummarySheet.rows(
             resultsSheet = resultsSheet,
             firstRow = firstRow,
             lastRow = lastRow,
             nameColumn = EXAM_NAME_COLUMN,
+            subjects = subjects,
             percentageColumn = percentageColumn,
             resultColumn = resultColumn,
         )
         val sheet = excel[ExamSummarySheet.SHEET_NAME]
-        sheet.appendRow(listOf(TextCellValue(ExamSummarySheet.TITLE), null))
-        sheet.appendRow(
-            listOf(
-                TextCellValue(ExamSummarySheet.HEADER_LABEL),
-                TextCellValue(ExamSummarySheet.HEADER_VALUE),
-            ),
-        )
+
+        val title = MutableList<CellValue?>(ExamSummarySheet.LAST_COLUMN) { null }
+        title[0] = TextCellValue(ExportHeading.title(examName, className))
+        title[ExamSummarySheet.CLASS_WISE_COLUMN - 1] = TextCellValue(ExamSummarySheet.CLASS_WISE_TITLE)
+        sheet.appendRow(title)
+
+        val header = mutableListOf<CellValue?>()
+        header.add(TextCellValue(ExamSummarySheet.SUBJECT_HEADER))
+        ExamSummarySheet.METRIC_HEADERS.forEach { header.add(TextCellValue(it)) }
+        ExamSummarySheet.CLASS_WISE_HEADERS.forEach { header.add(TextCellValue(it)) }
+        sheet.appendRow(header)
+
         rows.forEach { row ->
-            sheet.appendRow(listOf(TextCellValue(row.label), FormulaCellValue(row.formula)))
+            val cells = mutableListOf<CellValue?>()
+            cells.add(TextCellValue(row.label))
+            row.metricCells().forEach { formula ->
+                cells.add(formula?.let { FormulaCellValue(it) })
+            }
+            row.classWise.forEach { formula ->
+                cells.add(formula?.let { FormulaCellValue(it) })
+            }
+            sheet.appendRow(cells)
         }
-        sheet.setColumnWidth(0, 18.0)
-        sheet.setColumnWidth(1, 12.0)
-        applyBorders(sheet = sheet, lastRow = rows.size + 1, lastColumn = 1)
+
+        val firstDataIndex = ExamSummarySheet.FIRST_DATA_ROW - 1
+        rows.indices.forEach { index ->
+            setNumberFormat(sheet, ExamSummarySheet.PASS_PERCENT_COLUMN - 1, firstDataIndex + index)
+            setNumberFormat(sheet, ExamSummarySheet.AVERAGE_COLUMN - 1, firstDataIndex + index)
+        }
+        val overallIndex = firstDataIndex + rows.lastIndex
+        setNumberFormat(sheet, ExamSummarySheet.CLASS_PASS_PERCENT_COLUMN - 1, overallIndex)
+        setNumberFormat(sheet, ExamSummarySheet.CLASS_AVERAGE_COLUMN - 1, overallIndex)
+
+        sheet.setColumnWidth(0, 24.0)
+        for (columnIndex in 1..ExamSummarySheet.FIRST_BAND_COLUMN - 2) {
+            sheet.setColumnWidth(columnIndex, 15.0)
+        }
+        for (columnIndex in ExamSummarySheet.FIRST_BAND_COLUMN - 1 until ExamSummarySheet.LAST_COLUMN) {
+            sheet.setColumnWidth(columnIndex, 14.0)
+        }
+        applyBorders(
+            sheet = sheet,
+            lastRow = rows.size + 1,
+            lastColumn = ExamSummarySheet.LAST_COLUMN - 1,
+        )
+    }
+
+    /** Applies a display format without disturbing borders already on the cell. */
+    private fun setNumberFormat(
+        sheet: Sheet,
+        columnIndex: Int,
+        rowIndex: Int,
+        format: NumFormat = NumFormat.standard_10,
+    ) {
+        val data = sheet.cell(CellIndex.indexByColumnRow(columnIndex = columnIndex, rowIndex = rowIndex))
+        data.cellStyle = (data.cellStyle ?: CellStyle()).copyWith(numberFormat = format)
     }
 
     /** Thin box border on all four sides, keeping each cell's number format. */

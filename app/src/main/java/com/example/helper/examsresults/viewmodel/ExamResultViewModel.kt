@@ -6,6 +6,7 @@ import com.example.helper.coredata.entity.ExamSubject
 import com.example.helper.coredata.entity.ExportColumn
 import com.example.helper.coredata.repository.ExamRepository
 import com.example.helper.coredata.repository.ExportColumnRepository
+import com.example.helper.coredata.repository.SchoolClassRepository
 import com.example.helper.coredata.repository.StudentRepository
 import com.example.helper.examsresults.export.ExportColumnDefaults
 import com.example.helper.examsresults.util.ResultCalculator
@@ -21,6 +22,7 @@ data class ExamResultUiState(
     val results: List<StudentResult> = emptyList(),
     val subjects: List<com.example.helper.coredata.entity.ExamSubject> = emptyList(),
     val examName: String = "",
+    val className: String = "",
     val exportColumns: List<ExportColumn> = ExportColumnDefaults.columns(),
     val loading: Boolean = true,
 )
@@ -35,6 +37,7 @@ class ExamResultViewModel(
     private val studentRepository: StudentRepository,
     private val classId: String,
     private val exportColumnRepository: ExportColumnRepository,
+    private val classRepository: SchoolClassRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ExamResultUiState())
     val uiState: StateFlow<ExamResultUiState> = _uiState.asStateFlow()
@@ -42,18 +45,22 @@ class ExamResultViewModel(
     init {
         viewModelScope.launch {
             combine(
-                examRepository.observeById(examId),
+                combine(
+                    examRepository.observeById(examId),
+                    classRepository.observeById(classId),
+                ) { exam, schoolClass -> exam to schoolClass },
                 studentRepository.observeInClass(classId),
                 examRepository.observeSubjects(examId),
                 examRepository.observeMarks(examId),
                 exportColumnRepository.observeAll(),
-            ) { exam, students, subjects, marks, storedColumns ->
+            ) { (exam, schoolClass), students, subjects, marks, storedColumns ->
                 val results = students.map { student ->
                     val studentMarks = marks.filter { it.studentId == student.id }
                     ResultCalculator.calculate(student, subjects, studentMarks)
                 }.sortedBy { it.student.rollNumber ?: it.student.name }
                 ExamResultUiState(
                     examName = exam?.name ?: "",
+                    className = schoolClass?.name ?: "",
                     subjects = subjects,
                     results = results,
                     exportColumns = ExportColumnDefaults.effective(storedColumns),

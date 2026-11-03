@@ -47,3 +47,25 @@ fun Modifier.sharedElementIfPossible(
         )
     }
 }
+
+/**
+ * Shared bounds for text. Text must never use [sharedElementIfPossible]: a
+ * spatial spring would overshoot the glyphs. `sharedBounds` resizes the bounds
+ * and crossfades the content instead, so the name grows into place without a
+ * bounce. Same identity fallback as above.
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun Modifier.sharedBoundsIfPossible(
+    key: Any,
+    animatedVisibilityScope: AnimatedVisibilityScope?,
+): Modifier {
+    val sharedScope = LocalSharedTransitionScope.current
+    if (animatedVisibilityScope == null || sharedScope == null) return this
+    return with(sharedScope) {
+        this@sharedBoundsIfPossible.sharedBounds(
+            sharedContentState = rememberSharedContentState(key = key),
+            animatedVisibilityScope = animatedVisibilityScope,
+        )
+    }
+}

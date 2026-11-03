@@ -94,6 +94,7 @@ fun ExamDetailScreen(
                             subjects = state.subjects,
                             results = state.results,
                             columns = activeColumns,
+                            className = state.className,
                         )
                     }
                 }.onSuccess { file ->
@@ -124,6 +125,7 @@ fun ExamDetailScreen(
                         subjects = state.subjects,
                         results = state.results,
                         columns = state.exportColumns,
+                        className = state.className,
                     )
                 }
             }.onSuccess { file ->
