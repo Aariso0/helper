@@ -5,8 +5,8 @@
 # Teacher Classroom App (Android)
 
 > **Status:** Build phase complete — 10 of 11 modules built. Local, on-device prototype.  
-> **Version:** 1.2.1  
-> **Last updated:** 2026-11-03  
+> **Version:** 1.3.0  
+> **Last updated:** 2026-11-08  
 > **Focus:** Fast, efficient, one-handed UI that beats Excel for daily classroom tasks.  
 > **Server / cloud:** Not built (v3 placeholder only). Fully offline. Future server integration is planned in [modules/server-comms.md](modules/server-comms.md) as a self-hostable option for school/local servers (no reliance on third-party cloud providers).
 
@@ -24,7 +24,7 @@ A local, on-device Android app for a single teacher with the following features:
 | **Parents** | Built | Announcements with templates, parent contact log (manual logging only) |
 | **Roster & Students** | Built | Classes/students, student profiles, Excel/CSV import from a chosen sheet and row range, photo support |
 | **Export & Backup** | Built | Monthly reports (CSV/XLSX/PDF), full zip backup/restore with manifest preview |
-| **Exams & Results** | Built | Exam creation or import from Excel, fast mark entry, totals/%, pass-fail, Excel export with live formulas + linked Summary sheet, PDF export |
+| **Exams & Results** | Built | Exam creation or import from Excel, fast mark entry with absent (ABT) marks, sessions, totals/%, pass-fail, rank, Excel export with live formulas + Summary and Subject Teacher sheets, 3-page PDF |
 | **Animations** | Built | Spring-based motion system with shared elements and predictive back |
 | **App Shell & Navigation** | Built | Today home screen, bottom nav, theme, share helpers |
 
@@ -74,6 +74,8 @@ Every decision is judged by one question: **Does this save the teacher time or t
 
 ### Student Management
 - Class and student organization
+- Academic sessions (`2025-26`, `2026-27`, …): every class belongs to one session; the session menu on Today, Students, Homework and Parents switches the data shown, and the running session is marked `(curr.)`
+- School name, class teacher and designation per class, printed on every result sheet
 - Excel/CSV import with preview — pick the sheet and a row range (e.g. rows 5–25, or row 5 to the last filled row)
 - Student profile pages with photo support
 - Full attendance/history timeline
@@ -88,12 +90,14 @@ Every decision is judged by one question: **Does this save the teacher time or t
 ### Exams & Results
 - Create exams with multiple subjects and per-subject max/pass marks
 - Import an existing exam straight from an Excel sheet: pick the sheet and rows, and the app detects the name/roll columns, the subject columns and header marks like `Math (100)` or `Science (50/18)` — with a matched-student preview before anything is saved
-- Fast one-subject-at-a-time mark entry with numeric keyboard
-- Auto-calculated totals, percentages, pass/fail
+- Fast one-subject-at-a-time mark entry with numeric keyboard; mark a student **ABT** (absent) per subject, or bulk "mark remaining as absent" / "clear all absent" from the exam screen
+- Auto-calculated totals, percentages, pass/fail. An absent subject scores 0 and keeps its full maximum, fails the subject, and prints `ABT` — never `0`
 - Per-student analysis showing failed subjects
-- Excel export with a running **S.No.** column, live formulas, thin borders and a white sheet ("Fail" bold italic, never filled); percentages are stored as fractions and shown as `0.00%`
-- A second **Summary** sheet laid out like the teacher's mark-slip — one row per subject (`HINDI (40)`) with registered, appeared, passed (at the configured pass mark), pass %, subject average and the fixed 33/50/60/75/90/95 % score bands, followed by an `OVER ALL CLASS` row and a single class-wise block, all recalculating from the marks
-- PDF export (portrait A4, exam + class heading, repeated Name column, page numbers) for printing or sharing
+- Printed-style banner on every export: school name, exam, session, `CLASS-…`, sheet title, and class teacher with designation
+- **Results** sheet: running **S.No.**, live formulas, yellow editable marks cells and thin borders; a **Rank** column using Excel `RANK` (ties share a place); totals shown as `205(400)` through a number format so the cell stays numeric; a white sheet ("Fail" bold italic, never filled); percentages stored as fractions and shown as `0.00%`
+- **Summary** sheet laid out like the teacher's mark-slip — one row per subject (`HINDI (40)`) with registered, appeared, passed (at the configured pass mark), pass %, subject average and the 33/50/60/75/90/95 % score bands, followed by an `OVER ALL CLASS` row and a class-wise block, all recalculating live from the Results sheet
+- **Subject Teacher** sheet — the same banner, eight metrics and five score bands, plus subject teacher, designation and employee type per subject, with its own class-wise block
+- 3-page PDF for printing or sharing: portrait marks pages (banner and Name column repeated, auto-shrink then continuation pages rather than clipping a student), then landscape Summary and Subject Teacher pages
 - Configurable export columns (reorder, add custom formula columns, delete built-ins)
 - Add/edit/delete exams and subjects with confirmations
 
@@ -101,6 +105,7 @@ Every decision is judged by one question: **Does this save the teacher time or t
 - Monthly attendance reports (CSV, XLSX, PDF)
 - Full app backup as zip with manifest
 - Restore from backup with validation
+- Backups made on 1.2.x (schema v3) are refused rather than half-restored — take a fresh backup after upgrading
 - Share exports via system share sheet
 
 ---
