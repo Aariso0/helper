@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -53,6 +55,7 @@ import com.example.helper.coredata.entity.SchoolClass
 import com.example.helper.roster.ui.import.ImportScreen
 import com.example.helper.roster.viewmodel.ClassRow
 import com.example.helper.roster.viewmodel.classListViewModel
+import com.example.helper.scaffold.SessionMenu
 
 /**
  * Students-tab root (card: `roster-screens` → class list). Typed params only —
@@ -101,6 +104,7 @@ fun ClassListScreen(
             TopAppBar(
                 title = { Text("Students") },
                 actions = {
+                    SessionMenu()
                     TextButton(onClick = { showImport = true }) { Text("Import") }
                 },
             )
@@ -157,8 +161,9 @@ fun ClassListScreen(
         ClassEditDialog(
             title = "New class",
             confirmLabel = "Create",
-            onConfirm = { name, subject, year ->
-                viewModel.createClass(name, subject, year)
+            initialSchoolName = state.defaultSchoolName,
+            onConfirm = { name, subject, schoolName, teacherName, designation ->
+                viewModel.createClass(name, subject, schoolName, teacherName, designation)
                 showCreateDialog = false
             },
             onDismiss = { showCreateDialog = false },
@@ -171,9 +176,11 @@ fun ClassListScreen(
             confirmLabel = "Save",
             initialName = schoolClass.name,
             initialSubject = schoolClass.subject,
-            initialYear = schoolClass.year,
-            onConfirm = { name, subject, year ->
-                viewModel.renameClass(schoolClass, name, subject, year)
+            initialSchoolName = schoolClass.schoolName ?: state.defaultSchoolName,
+            initialTeacherName = schoolClass.teacherName,
+            initialTeacherDesignation = schoolClass.teacherDesignation,
+            onConfirm = { name, subject, schoolName, teacherName, designation ->
+                viewModel.renameClass(schoolClass, name, subject, schoolName, teacherName, designation)
                 classBeingEdited = null
             },
             onDismiss = { classBeingEdited = null },
@@ -240,9 +247,8 @@ private fun ClassRowItem(
                 overflow = TextOverflow.Ellipsis,
             )
             val detail = buildString {
-                listOfNotNull(row.schoolClass.subject, row.schoolClass.year)
-                    .joinToString(" · ")
-                    .takeIf { it.isNotEmpty() }
+                row.schoolClass.subject
+                    ?.takeIf { it.isNotBlank() }
                     ?.let { append(it); append(" · ") }
                 append(
                     when (val n = row.studentCount) {
@@ -321,21 +327,34 @@ private fun EmptyClasses(
 private fun ClassEditDialog(
     title: String,
     confirmLabel: String,
-    onConfirm: (name: String, subject: String?, year: String?) -> Unit,
+    onConfirm: (
+        name: String,
+        subject: String?,
+        schoolName: String?,
+        teacherName: String?,
+        teacherDesignation: String?,
+    ) -> Unit,
     onDismiss: () -> Unit,
     initialName: String = "",
     initialSubject: String? = null,
-    initialYear: String? = null,
+    initialSchoolName: String? = null,
+    initialTeacherName: String? = null,
+    initialTeacherDesignation: String? = null,
 ) {
     var name by remember { mutableStateOf(initialName) }
     var subject by remember { mutableStateOf(initialSubject ?: "") }
-    var year by remember { mutableStateOf(initialYear ?: "") }
+    var schoolName by remember { mutableStateOf(initialSchoolName ?: "") }
+    var teacherName by remember { mutableStateOf(initialTeacherName ?: "") }
+    var teacherDesignation by remember { mutableStateOf(initialTeacherDesignation ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -351,9 +370,23 @@ private fun ClassEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
-                    value = year,
-                    onValueChange = { year = it },
-                    label = { Text("Year (optional)") },
+                    value = schoolName,
+                    onValueChange = { schoolName = it },
+                    label = { Text("School name (for the result sheet)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = teacherName,
+                    onValueChange = { teacherName = it },
+                    label = { Text("Class teacher") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = teacherDesignation,
+                    onValueChange = { teacherDesignation = it },
+                    label = { Text("Teacher designation") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -361,7 +394,15 @@ private fun ClassEditDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(name, subject.ifBlank { null }, year.ifBlank { null }) },
+                onClick = {
+                    onConfirm(
+                        name,
+                        subject.ifBlank { null },
+                        schoolName.ifBlank { null },
+                        teacherName.ifBlank { null },
+                        teacherDesignation.ifBlank { null },
+                    )
+                },
                 enabled = name.isNotBlank(),
             ) { Text(confirmLabel) }
         },

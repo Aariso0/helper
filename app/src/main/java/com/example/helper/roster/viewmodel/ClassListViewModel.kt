@@ -24,6 +24,8 @@ data class ClassRow(
 data class ClassListUiState(
     val loaded: Boolean = false,
     val classes: List<ClassRow> = emptyList(),
+    /** School name from the most recently touched class, so it is typed once. */
+    val defaultSchoolName: String = "",
 )
 
 /**
@@ -47,16 +49,38 @@ class ClassListViewModel(
             classes = classes
                 .map { ClassRow(it, counts[it.id] ?: 0) }
                 .sortedBy { it.schoolClass.name.lowercase() },
+            defaultSchoolName = classes.maxByOrNull { it.updatedAt }?.schoolName.orEmpty(),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ClassListUiState())
 
-    fun createClass(name: String, subject: String?, year: String?) {
+    fun createClass(
+        name: String,
+        subject: String?,
+        schoolName: String?,
+        teacherName: String?,
+        teacherDesignation: String?,
+    ) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
-        viewModelScope.launch { classRepository.create(trimmed, subject?.trim(), year?.trim()) }
+        viewModelScope.launch {
+            classRepository.create(
+                name = trimmed,
+                subject = subject?.trim(),
+                schoolName = schoolName?.trim(),
+                teacherName = teacherName?.trim(),
+                teacherDesignation = teacherDesignation?.trim(),
+            )
+        }
     }
 
-    fun renameClass(schoolClass: SchoolClass, name: String, subject: String?, year: String?) {
+    fun renameClass(
+        schoolClass: SchoolClass,
+        name: String,
+        subject: String?,
+        schoolName: String?,
+        teacherName: String?,
+        teacherDesignation: String?,
+    ) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
@@ -64,7 +88,9 @@ class ClassListViewModel(
                 schoolClass.copy(
                     name = trimmed,
                     subject = subject?.trim()?.ifEmpty { null },
-                    year = year?.trim()?.ifEmpty { null },
+                    schoolName = schoolName?.trim()?.ifEmpty { null },
+                    teacherName = teacherName?.trim()?.ifEmpty { null },
+                    teacherDesignation = teacherDesignation?.trim()?.ifEmpty { null },
                 )
             )
         }

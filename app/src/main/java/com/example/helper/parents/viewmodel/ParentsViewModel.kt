@@ -14,6 +14,8 @@ import com.example.helper.coredata.entity.SchoolClass
 import com.example.helper.coredata.entity.Student
 import com.example.helper.coredata.repository.AnnouncementRepository
 import com.example.helper.coredata.repository.ContactLogRepository
+import com.example.helper.coredata.repository.SchoolClassRepository
+import com.example.helper.coredata.repository.StudentRepository
 import com.example.helper.parents.pdfstore.AnnouncementPdfStore
 import java.io.File
 import java.io.IOException
@@ -60,6 +62,8 @@ internal fun announcementText(title: String?, body: String): String {
  * UI never does date math.
  */
 class ParentsViewModel(
+    private val classRepository: SchoolClassRepository,
+    private val studentRepository: StudentRepository,
     private val announcementRepository: AnnouncementRepository,
     private val contactLogRepository: ContactLogRepository,
 ) : ViewModel() {
@@ -75,14 +79,26 @@ class ParentsViewModel(
     )
 
     val uiState: StateFlow<UiState> = combine(
+        classRepository.observeAll(),
+        studentRepository.observeAll(),
         announcementRepository.observeAnnouncements(),
         contactLogRepository.observeEntries(),
-    ) { announcements, entries ->
+    ) { classes, students, announcements, entries ->
+        // Parents data follows the viewed session through its classes and
+        // students: class-less announcements are school-wide and always show.
+        val classIds = classes.mapTo(mutableSetOf()) { it.id }
+        val studentIds = students
+            .filter { it.classId in classIds }
+            .mapTo(mutableSetOf()) { it.id }
         UiState(
             loading = false,
             // Repositories already sort recent-first; labels ride along.
-            announcements = announcements.map { AnnouncementItem(it, dateLabelFor(it.dateEpochDay)) },
-            entries = entries.map { EntryItem(it, dateLabelFor(it.dateEpochDay)) },
+            announcements = announcements
+                .filter { it.classId == null || it.classId in classIds }
+                .map { AnnouncementItem(it, dateLabelFor(it.dateEpochDay)) },
+            entries = entries
+                .filter { it.studentId in studentIds }
+                .map { EntryItem(it, dateLabelFor(it.dateEpochDay)) },
         )
     }.stateIn(
         scope = viewModelScope,
@@ -211,9 +227,16 @@ class AnnouncementEditViewModel(
             val schoolClass = s.classId?.let { id ->
                 // The picker handed us the object once; row creation only
                 // denormalizes its id + name (createAnnouncement copies those
-                // two fields — it never writes the class row itself).
+                // two fields — it never writes the class row itself), so the
+                // rest of the class fields are placeholders.
                 val now = System.currentTimeMillis()
-                SchoolClass(id = id, name = s.className.orEmpty(), createdAt = now, updatedAt = now)
+                SchoolClass(
+                    id = id,
+                    sessionId = "",
+                    name = s.className.orEmpty(),
+                    createdAt = now,
+                    updatedAt = now,
+                )
             }
             announcementRepository.createAnnouncement(
                 schoolClass = schoolClass,
@@ -330,7 +353,12 @@ fun parentsViewModel(key: String = "parents-tab"): ParentsViewModel {
     val app = LocalContext.current.applicationContext as HelperApplication
     return viewModel(key = key) {
         val container = app.container
-        ParentsViewModel(container.announcementRepository, container.contactLogRepository)
+        ParentsViewModel(
+            classRepository = container.classRepository,
+            studentRepository = container.studentRepository,
+            announcementRepository = container.announcementRepository,
+            contactLogRepository = container.contactLogRepository,
+        )
     }
 }
 

@@ -26,6 +26,22 @@ abstract class ExamSubjectDao {
     )
     abstract fun observeByClass(classId: String): Flow<List<ExamSubject>>
 
+    /**
+     * The newest subject row with this name for the class — the source for the
+     * teacher fields when a new exam repeats a subject. Case-insensitive so
+     * "Maths" and "maths" are the same subject to the teacher.
+     */
+    @Query(
+        """
+        SELECT exam_subjects.* FROM exam_subjects
+        INNER JOIN exams ON exams.id = exam_subjects.examId
+        WHERE exams.classId = :classId AND LOWER(exam_subjects.name) = LOWER(:subjectName)
+        ORDER BY exams.examDate DESC, exams.createdAt DESC, exam_subjects.sortOrder ASC
+        LIMIT 1
+        """
+    )
+    abstract suspend fun latestSubjectTeacher(classId: String, subjectName: String): ExamSubject?
+
     @Upsert
     abstract suspend fun upsert(subject: ExamSubject)
 

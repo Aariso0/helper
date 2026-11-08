@@ -76,7 +76,7 @@ class TodayViewModel(
             ClassRow(
                 classId = schoolClass.id,
                 name = schoolClass.name,
-                subtitle = listOfNotNull(schoolClass.subject, schoolClass.year).joinToString(" · "),
+                subtitle = schoolClass.subject.orEmpty(),
                 attendanceTaken = counts != null,
                 present = counts?.present ?: 0,
                 absent = counts?.absent ?: 0,
@@ -89,12 +89,15 @@ class TodayViewModel(
         val dueRows = homework
             .mapNotNull { withAttachments ->
                 val hw = withAttachments.homework
+                // A class outside the viewed session must not leak its homework
+                // into today's list (the class flow is already session-scoped).
+                val className = classNamesById[hw.classId] ?: return@mapNotNull null
                 val due = hw.dueDateEpochDay ?: return@mapNotNull null
                 if (due > todayEpochDay) return@mapNotNull null
                 val row = DueHomeworkRow(
                     homeworkId = hw.id,
                     title = hw.title,
-                    className = classNamesById[hw.classId] ?: "Class",
+                    className = className,
                     dueLabel = if (due == todayEpochDay) {
                         "Due today"
                     } else {

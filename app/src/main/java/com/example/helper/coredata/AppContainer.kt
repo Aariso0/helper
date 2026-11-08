@@ -9,8 +9,13 @@ import com.example.helper.coredata.repository.ExportColumnRepository
 import com.example.helper.coredata.repository.FeedbackRepository
 import com.example.helper.coredata.repository.HomeworkRepository
 import com.example.helper.coredata.repository.SchoolClassRepository
+import com.example.helper.coredata.repository.SchoolSessionRepository
 import com.example.helper.coredata.repository.StudentRepository
+import com.example.helper.coredata.session.SessionScope
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * Manual-DI container (core-data card): built once on the Application, owns
@@ -20,7 +25,12 @@ import java.io.File
 class AppContainer(private val context: Context) {
     private val database: AppDatabase by lazy { AppDatabase.get(context) }
 
-    val classRepository = SchoolClassRepository(database.schoolClassDao())
+    /** Lives as long as the app: seeding and the `(curr.)` flip are fire-and-forget. */
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    val sessionRepository = SchoolSessionRepository(database.schoolSessionDao())
+    val sessionScope = SessionScope(context, sessionRepository, applicationScope)
+    val classRepository = SchoolClassRepository(database.schoolClassDao(), sessionScope)
     val studentRepository = StudentRepository(database.studentDao())
     val attendanceRepository = AttendanceRepository(database.attendanceDao())
     val feedbackRepository = FeedbackRepository(database.feedbackDao())

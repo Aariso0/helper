@@ -1,5 +1,6 @@
 package com.example.helper.coredata.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -40,4 +41,10 @@ data class ExamMark(
     val subjectId: String,
     val studentId: String,
     val marksObtained: Double = 0.0,
+    /**
+     * A deliberate "absent" for this subject. It behaves as 0 marks and fails
+     * the subject, but the cell prints `ABT` instead of `0`. A mark that was
+     * simply not entered has no row at all and is a different state.
+     */
+    @ColumnInfo(defaultValue = "0") val isAbsent: Boolean = false,
 )

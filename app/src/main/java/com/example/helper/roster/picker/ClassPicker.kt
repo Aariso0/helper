@@ -70,10 +70,7 @@ fun ClassPicker(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            val subtitle = listOfNotNull(
-                                schoolClass.subject,
-                                schoolClass.year,
-                            ).joinToString(" · ")
+                            val subtitle = schoolClass.subject.orEmpty()
                             if (subtitle.isNotEmpty()) {
                                 Text(
                                     text = subtitle,

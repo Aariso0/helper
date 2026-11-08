@@ -24,4 +24,8 @@ data class ExamSubject(
     val maxMarks: Int,
     val passMarks: Int,
     val sortOrder: Int = 0,
+    /** Who teaches this subject in this exam (page 3 of the printed sheet). */
+    val teacherName: String? = null,
+    val teacherDesignation: String? = null,
+    val employeeType: String? = null,
 )

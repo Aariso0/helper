@@ -29,6 +29,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.helper.examsresults.viewmodel.ExamSetupViewModel
@@ -92,7 +93,15 @@ fun ExamSetupScreen(
                             value = subject.name,
                             onValueChange = { viewModel.updateSubject(subject.id, it, subject.maxMarks, subject.passMarks) },
                             label = { Text("Subject") },
-                            modifier = Modifier.weight(1f),
+                            // Leaving the name is the natural moment to look up
+                            // this subject's teacher from the class's last exam.
+                            modifier = Modifier
+                                .weight(1f)
+                                .onFocusChanged { focus ->
+                                    if (!focus.isFocused) {
+                                        viewModel.prefillSubjectTeacher(subject.id, classId)
+                                    }
+                                },
                         )
                         IconButton(onClick = { viewModel.removeSubject(subject.id) }) {
                             Icon(Icons.Filled.Delete, contentDescription = "Remove")
@@ -117,6 +126,50 @@ fun ExamSetupScreen(
                             modifier = Modifier.weight(1f),
                         )
                     }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = subject.teacherName,
+                            onValueChange = {
+                                viewModel.updateSubjectDetails(
+                                    subject.id,
+                                    it,
+                                    subject.teacherDesignation,
+                                    subject.employeeType,
+                                )
+                            },
+                            label = { Text("Teacher name") },
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedTextField(
+                            value = subject.teacherDesignation,
+                            onValueChange = {
+                                viewModel.updateSubjectDetails(
+                                    subject.id,
+                                    subject.teacherName,
+                                    it,
+                                    subject.employeeType,
+                                )
+                            },
+                            label = { Text("Designation") },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    OutlinedTextField(
+                        value = subject.employeeType,
+                        onValueChange = {
+                            viewModel.updateSubjectDetails(
+                                subject.id,
+                                subject.teacherName,
+                                subject.teacherDesignation,
+                                it,
+                            )
+                        },
+                        label = { Text("Employee type (optional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
 

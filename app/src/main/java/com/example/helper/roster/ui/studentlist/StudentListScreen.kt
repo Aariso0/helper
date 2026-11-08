@@ -98,9 +98,7 @@ fun StudentListScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        val subtitle = state.schoolClass?.let {
-                            listOfNotNull(it.subject, it.year).joinToString(" · ")
-                        }.orEmpty()
+                        val subtitle = state.schoolClass?.subject.orEmpty()
                         if (subtitle.isNotEmpty()) {
                             Text(
                                 text = subtitle,

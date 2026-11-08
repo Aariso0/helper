@@ -19,8 +19,8 @@ import org.junit.Test
  */
 class MonthlySummaryTest {
 
-    private val classA = SchoolClass(id = "c1", name = "5-A", createdAt = 0, updatedAt = 0)
-    private val classB = SchoolClass(id = "c2", name = "5-B", createdAt = 0, updatedAt = 0)
+    private val classA = SchoolClass(id = "c1", sessionId = "s", name = "5-A", createdAt = 0, updatedAt = 0)
+    private val classB = SchoolClass(id = "c2", sessionId = "s", name = "5-B", createdAt = 0, updatedAt = 0)
 
     private val asha = Student(id = "s1", classId = "c1", name = "Asha", rollNumber = "2", createdAt = 0, updatedAt = 0)
     private val bina = Student(id = "s2", classId = "c1", name = "Bina", rollNumber = "1", createdAt = 0, updatedAt = 0)

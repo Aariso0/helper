@@ -213,9 +213,9 @@ fun StudentPageScreen(
                     ),
                 )
                 state.schoolClass?.let { schoolClass ->
-                    val subtitle = listOfNotNull(schoolClass.subject, schoolClass.year)
-                        .joinToString(" · ")
-                        .ifEmpty { schoolClass.name }
+                    val subtitle = schoolClass.subject
+                        ?.takeIf { it.isNotBlank() }
+                        ?: schoolClass.name
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodyMedium,

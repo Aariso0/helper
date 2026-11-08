@@ -23,6 +23,9 @@ data class SubjectInput(
     val name: String = "",
     val maxMarks: String = "100",
     val passMarks: String = "35",
+    val teacherName: String = "",
+    val teacherDesignation: String = "",
+    val employeeType: String = "",
 )
 
 class ExamSetupViewModel(
@@ -56,6 +59,70 @@ class ExamSetupViewModel(
         )
     }
 
+    fun updateSubjectDetails(
+        id: String,
+        teacherName: String,
+        teacherDesignation: String,
+        employeeType: String,
+    ) {
+        _uiState.value = _uiState.value.copy(
+            subjects = _uiState.value.subjects.map {
+                if (it.id != id) {
+                    it
+                } else {
+                    it.copy(
+                        teacherName = teacherName,
+                        teacherDesignation = teacherDesignation,
+                        employeeType = employeeType,
+                    )
+                }
+            },
+        )
+    }
+
+    /**
+     * Fills the teacher fields of [subjectId] from the class's newest exam with
+     * the same subject name. Only blank fields are touched, so typing is never
+     * overwritten and a second prefill cannot undo an edit.
+     */
+    fun prefillSubjectTeacher(subjectId: String, classId: String) {
+        val subject = _uiState.value.subjects.firstOrNull { it.id == subjectId } ?: return
+        val subjectName = subject.name.trim()
+        if (subjectName.isEmpty()) return
+        if (
+            subject.teacherName.isNotBlank() &&
+            subject.teacherDesignation.isNotBlank() &&
+            subject.employeeType.isNotBlank()
+        ) {
+            return
+        }
+        viewModelScope.launch {
+            val reference = examRepository.latestSubjectTeacher(classId, subjectName) ?: return@launch
+            _uiState.value = _uiState.value.copy(
+                subjects = _uiState.value.subjects.map { current ->
+                    if (
+                        current.id != subjectId ||
+                        !current.name.trim().equals(subjectName, ignoreCase = true)
+                    ) {
+                        current
+                    } else {
+                        current.copy(
+                            teacherName = current.teacherName.ifBlank {
+                                reference.teacherName.orEmpty()
+                            },
+                            teacherDesignation = current.teacherDesignation.ifBlank {
+                                reference.teacherDesignation.orEmpty()
+                            },
+                            employeeType = current.employeeType.ifBlank {
+                                reference.employeeType.orEmpty()
+                            },
+                        )
+                    }
+                },
+            )
+        }
+    }
+
     fun createExam(classId: String) {
         val state = _uiState.value
         if (state.examName.isBlank()) return
@@ -82,6 +149,9 @@ class ExamSetupViewModel(
                     maxMarks = max,
                     passMarks = (input.passMarks.toIntOrNull() ?: 35).coerceIn(0, max),
                     sortOrder = index,
+                    teacherName = input.teacherName.trim().ifEmpty { null },
+                    teacherDesignation = input.teacherDesignation.trim().ifEmpty { null },
+                    employeeType = input.employeeType.trim().ifEmpty { null },
                 )
             }
             examRepository.upsertSubjects(subjects)

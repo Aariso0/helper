@@ -31,6 +31,10 @@ class ExamRepository(
     fun observeSubjectsForClass(classId: String): Flow<List<ExamSubject>> = subjectDao.observeByClass(classId)
     suspend fun getSubjects(examId: String): List<ExamSubject> = subjectDao.getByExam(examId)
 
+    /** Teacher fields for a repeated subject, taken from the class's newest exam. */
+    suspend fun latestSubjectTeacher(classId: String, subjectName: String): ExamSubject? =
+        subjectDao.latestSubjectTeacher(classId, subjectName)
+
     suspend fun upsertSubject(subject: ExamSubject) {
         subjectDao.upsert(subject)
     }
@@ -81,5 +85,9 @@ class ExamRepository(
 
     suspend fun deleteMarksForStudent(examId: String, studentId: String) {
         markDao.deleteForStudent(examId, studentId)
+    }
+
+    suspend fun deleteAbsentMarks(examId: String) {
+        markDao.deleteAbsentForExam(examId)
     }
 }

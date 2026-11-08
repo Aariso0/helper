@@ -9,14 +9,18 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SchoolClassDao {
-    @Query("SELECT * FROM classes ORDER BY name COLLATE NOCASE")
-    fun observeAll(): Flow<List<SchoolClass>>
+    @Query("SELECT * FROM classes WHERE sessionId = :sessionId ORDER BY name COLLATE NOCASE")
+    fun observeAll(sessionId: String): Flow<List<SchoolClass>>
 
     @Query("SELECT * FROM classes WHERE id = :id")
     fun observeById(id: String): Flow<SchoolClass?>
 
     @Query("SELECT * FROM classes WHERE id = :id")
     suspend fun getById(id: String): SchoolClass?
+
+    /** Every class across every session — backups must not depend on the viewed session. */
+    @Query("SELECT * FROM classes ORDER BY name COLLATE NOCASE")
+    suspend fun getAll(): List<SchoolClass>
 
     @Upsert
     suspend fun upsert(schoolClass: SchoolClass)

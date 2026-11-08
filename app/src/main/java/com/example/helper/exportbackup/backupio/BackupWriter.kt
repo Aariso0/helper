@@ -14,6 +14,7 @@ import com.example.helper.coredata.entity.FeedbackNote
 import com.example.helper.coredata.entity.FeedbackTag
 import com.example.helper.coredata.entity.Homework
 import com.example.helper.coredata.entity.SchoolClass
+import com.example.helper.coredata.entity.SchoolSession
 import com.example.helper.coredata.entity.Student
 import com.example.helper.homework.attachmentstore.AttachmentStore
 import com.example.helper.roster.photostorage.PhotoStorage
@@ -86,7 +87,8 @@ class BackupWriter(
     // ── Snapshot: every row, through the repositories (never Room directly) ─
 
     private suspend fun readSnapshot(): Snapshot = Snapshot(
-        classes = container.classRepository.observeAll().first(),
+        sessions = container.sessionRepository.getAll(),
+        classes = container.classRepository.getAll(),
         students = container.studentRepository.observeAll().first(),
         attendance = container.attendanceRepository.getAll(),
         tags = container.feedbackRepository.observeTags().first(),
@@ -121,6 +123,7 @@ class BackupWriter(
 
 /** All repository rows at backup time — the source of the CSV copies. */
 private data class Snapshot(
+    val sessions: List<SchoolSession>,
     val classes: List<SchoolClass>,
     val students: List<Student>,
     val attendance: List<AttendanceRecord>,
@@ -134,6 +137,7 @@ private data class Snapshot(
     private val attachments: List<Attachment> get() = homework.flatMap { it.attachments }
 
     fun tableCounts(): Map<String, Int> = linkedMapOf(
+        "sessions" to sessions.size,
         "classes" to classes.size,
         "students" to students.size,
         "attendance_records" to attendance.size,
@@ -148,9 +152,30 @@ private data class Snapshot(
 
     /** One CSV per table: every column, human-readable dates, UTF-8. */
     fun csvTables(): Map<String, ByteArray> = linkedMapOf(
+        "sessions" to csv(
+            listOf("id", "label", "isCurrent", "createdAt", "updatedAt"),
+            sessions.map {
+                listOf(it.id, it.label, it.isCurrent, isoMillis(it.createdAt), isoMillis(it.updatedAt))
+            },
+        ),
         "classes" to csv(
-            listOf("id", "name", "subject", "year", "createdAt", "updatedAt"),
-            classes.map { listOf(it.id, it.name, it.subject.orEmpty(), it.year.orEmpty(), isoMillis(it.createdAt), isoMillis(it.updatedAt)) },
+            listOf(
+                "id", "sessionId", "name", "subject", "schoolName",
+                "teacherName", "teacherDesignation", "createdAt", "updatedAt",
+            ),
+            classes.map {
+                listOf(
+                    it.id,
+                    it.sessionId,
+                    it.name,
+                    it.subject.orEmpty(),
+                    it.schoolName.orEmpty(),
+                    it.teacherName.orEmpty(),
+                    it.teacherDesignation.orEmpty(),
+                    isoMillis(it.createdAt),
+                    isoMillis(it.updatedAt),
+                )
+            },
         ),
         "students" to csv(
             listOf("id", "classId", "name", "rollNumber", "parentContact", "photoPath", "createdAt", "updatedAt"),

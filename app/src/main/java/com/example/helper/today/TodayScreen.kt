@@ -41,6 +41,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import com.example.helper.roster.picker.StudentPicker
+import com.example.helper.scaffold.SessionMenu
 import com.example.helper.theme.ShellDimens
 
 /**
@@ -86,6 +87,7 @@ fun TodayScreen(
                         )
                     }
                 },
+                actions = { SessionMenu() },
             )
         },
         floatingActionButton = {

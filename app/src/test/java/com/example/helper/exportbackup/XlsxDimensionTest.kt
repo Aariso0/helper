@@ -61,7 +61,7 @@ class XlsxDimensionTest {
 
     @Test
     fun `a real export declares the range it contains`() {
-        val class5A = SchoolClass(id = "c1", name = "5-A", createdAt = 0, updatedAt = 0)
+        val class5A = SchoolClass(id = "c1", sessionId = "s", name = "5-A", createdAt = 0, updatedAt = 0)
         val students = listOf(
             Student(id = "s1", classId = "c1", name = "Asha", rollNumber = "1", createdAt = 0, updatedAt = 0),
             Student(id = "s2", classId = "c1", name = "Bina", rollNumber = "2", createdAt = 0, updatedAt = 0),

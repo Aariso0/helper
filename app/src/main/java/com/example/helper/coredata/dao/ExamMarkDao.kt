@@ -35,4 +35,7 @@ interface ExamMarkDao {
 
     @Query("DELETE FROM exam_marks WHERE examId = :examId AND studentId = :studentId")
     suspend fun deleteForStudent(examId: String, studentId: String)
+
+    @Query("DELETE FROM exam_marks WHERE examId = :examId AND isAbsent = 1")
+    suspend fun deleteAbsentForExam(examId: String)
 }

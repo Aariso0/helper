@@ -15,6 +15,7 @@ import com.example.helper.coredata.dao.ExportColumnDao
 import com.example.helper.coredata.dao.FeedbackDao
 import com.example.helper.coredata.dao.HomeworkDao
 import com.example.helper.coredata.dao.SchoolClassDao
+import com.example.helper.coredata.dao.SchoolSessionDao
 import com.example.helper.coredata.dao.StudentDao
 import com.example.helper.coredata.entity.Announcement
 import com.example.helper.coredata.entity.AnnouncementTemplate
@@ -29,6 +30,7 @@ import com.example.helper.coredata.entity.FeedbackNote
 import com.example.helper.coredata.entity.FeedbackTag
 import com.example.helper.coredata.entity.Homework
 import com.example.helper.coredata.entity.SchoolClass
+import com.example.helper.coredata.entity.SchoolSession
 import com.example.helper.coredata.entity.Student
 import com.example.helper.coredata.migration.Migrations
 
@@ -40,6 +42,7 @@ import com.example.helper.coredata.migration.Migrations
  */
 @Database(
     entities = [
+        SchoolSession::class,
         SchoolClass::class,
         Student::class,
         AttendanceRecord::class,
@@ -61,6 +64,7 @@ import com.example.helper.coredata.migration.Migrations
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun schoolClassDao(): SchoolClassDao
+    abstract fun schoolSessionDao(): SchoolSessionDao
     abstract fun studentDao(): StudentDao
     abstract fun attendanceDao(): AttendanceDao
     abstract fun feedbackDao(): FeedbackDao
@@ -77,7 +81,7 @@ abstract class AppDatabase : RoomDatabase() {
         const val DATABASE_NAME = "helper.db"
 
         /** Schema version — @Database reads this; backup manifests record it. */
-        const val SCHEMA_VERSION = 3
+        const val SCHEMA_VERSION = 4
 
         @Volatile
         private var instance: AppDatabase? = null

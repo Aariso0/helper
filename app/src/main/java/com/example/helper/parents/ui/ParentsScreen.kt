@@ -54,6 +54,7 @@ import com.example.helper.parents.viewmodel.parentsViewModel
 import com.example.helper.roster.picker.StudentPicker
 import com.example.helper.motion.Motion
 import com.example.helper.motion.ScreenTakeover
+import com.example.helper.scaffold.SessionMenu
 import com.example.helper.share.shareText
 import com.example.helper.theme.ShellDimens
 
@@ -142,7 +143,7 @@ fun ParentsScreen() {
         visible = showAnnouncementEdit,
         base = {
         Scaffold(
-            topBar = { TopAppBar(title = { Text("Parents") }) },
+            topBar = { TopAppBar(title = { Text("Parents") }, actions = { SessionMenu() }) },
             floatingActionButton = {
                 ExtendedFloatingActionButton(
                     onClick = { showAnnouncementEdit = true },

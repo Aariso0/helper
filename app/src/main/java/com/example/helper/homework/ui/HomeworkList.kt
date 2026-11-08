@@ -49,6 +49,7 @@ import com.example.helper.homework.viewmodel.homeworkListViewModel
 import com.example.helper.homework.viewmodel.homeworkEditViewModel
 import com.example.helper.motion.Motion
 import com.example.helper.motion.ScreenTakeover
+import com.example.helper.scaffold.SessionMenu
 import com.example.helper.share.asShareableUri
 import com.example.helper.share.shareFiles
 import com.example.helper.share.shareText
@@ -90,7 +91,7 @@ fun HomeworkScreen(
         visible = showEdit,
         base = {
             Scaffold(
-                topBar = { TopAppBar(title = { Text("Homework") }) },
+                topBar = { TopAppBar(title = { Text("Homework") }, actions = { SessionMenu() }) },
                 floatingActionButton = {
                     ExtendedFloatingActionButton(
                         onClick = { showEdit = true },
