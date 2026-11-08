@@ -34,6 +34,10 @@ object ExportColumnDefaults {
      */
     const val PERCENTAGE_TEMPLATE =
         "IF({Total Max}=0,0,{Total Obtained}/{Total Max})"
+
+    /** v1.2.0's default; it produced `6125` for `61.25%` in a `0.00%` cell. */
+    private const val LEGACY_PERCENTAGE_TEMPLATE =
+        "IF({Total Max}=0,0,{Total Obtained}/{Total Max}*100)"
     const val RESULT_TEMPLATE =
         "IF(AND(COUNT({All Marks})=0,COUNTIF({All Marks},\"ABT\")=0),\"\"," +
             "IF(AND({All Pass Checks}),\"Pass\",\"Fail\"))"
@@ -74,7 +78,19 @@ object ExportColumnDefaults {
         if (stored.isEmpty()) {
             columns()
         } else {
-            stored.filterNot { it.id == CLEARED_LAYOUT_ID }
+            stored.filterNot { it.id == CLEARED_LAYOUT_ID || it.kind == ExportColumnKind.TOTAL_MAX }
+                .map { column ->
+                    // A layout saved on 1.2.0 keeps the old whole-number
+                    // percentage while the cell is formatted `0.00%`.
+                    if (
+                        column.kind == ExportColumnKind.PERCENTAGE &&
+                        column.formula == LEGACY_PERCENTAGE_TEMPLATE
+                    ) {
+                        column.copy(formula = PERCENTAGE_TEMPLATE)
+                    } else {
+                        column
+                    }
+                }
                 .sortedWith(compareBy({ it.sortOrder }, { it.id }))
         }
 

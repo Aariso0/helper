@@ -96,6 +96,7 @@ object ExamExcelWriter {
         // A is S.No., B Roll No., C Student Name, so the marks start at D.
         val firstMarkCol = 4
         val computedStartCol = firstMarkCol + subjects.size
+        val totalMax = subjects.sumOf { it.maxMarks }
 
         writeBanner(
             sheet = sheet,
@@ -116,7 +117,15 @@ object ExamExcelWriter {
             headers[3 + index] = TextCellValue(subject.name)
         }
         ordered.forEachIndexed { index, column ->
-            headers[computedStartCol - 1 + index] = TextCellValue(column.label)
+            headers[computedStartCol - 1 + index] = TextCellValue(
+                // The exam maximum is stated once, in the header, instead of
+                // repeated in every student's total cell.
+                if (column.kind == ExportColumnKind.TOTAL_OBTAINED) {
+                    "${column.label} ($totalMax)"
+                } else {
+                    column.label
+                },
+            )
         }
         sheet.appendRow(headers)
 
@@ -186,10 +195,8 @@ object ExamExcelWriter {
             sheet.appendRow(row)
         }
 
-        val totalMax = subjects.sumOf { it.maxMarks }
         val resultIndex = ordered.indexOfFirst { it.kind == ExportColumnKind.RESULT }
         val percentageIndex = ordered.indexOfFirst { it.kind == ExportColumnKind.PERCENTAGE }
-        val totalObtainedIndex = ordered.indexOfFirst { it.kind == ExportColumnKind.TOTAL_OBTAINED }
 
         // Every percentage in the workbook is a share (`0.8`), so the cell
         // format is what turns it into `80.00%`. A viewer that ignores the
@@ -203,21 +210,6 @@ object ExamExcelWriter {
                     columnIndex = percentageCellColumn,
                     rowIndex = START_ROW - 1 + index,
                     format = NumFormat.standard_10,
-                )
-            }
-        }
-
-        // The total keeps its real number for every formula; the custom format
-        // only makes it read like the printed `205(400)`.
-        if (totalObtainedIndex >= 0 && results.isNotEmpty()) {
-            val totalCellColumn = computedStartCol + totalObtainedIndex - 1
-            val format = NumFormat.custom("0.##\"($totalMax)\"")
-            results.indices.forEach { index ->
-                setNumberFormat(
-                    sheet = sheet,
-                    columnIndex = totalCellColumn,
-                    rowIndex = START_ROW - 1 + index,
-                    format = format,
                 )
             }
         }
@@ -241,7 +233,8 @@ object ExamExcelWriter {
         }
         ordered.forEachIndexed { index, column ->
             val width = when (column.kind) {
-                ExportColumnKind.TOTAL_OBTAINED -> 11.0
+                // Wide enough for the `Total Obtained (400)` header.
+                ExportColumnKind.TOTAL_OBTAINED -> 17.0
                 ExportColumnKind.TOTAL_MAX -> 11.0
                 ExportColumnKind.PERCENTAGE -> 9.0
                 ExportColumnKind.RESULT -> 9.0
@@ -662,7 +655,7 @@ object ExamExcelWriter {
             row.metricCells().forEach { formula ->
                 cells.add(formula?.let { FormulaCellValue(it) })
             }
-            cells.add(TextCellValue(row.teacherName))
+            cells.add(TextCellValue(row.teacherDisplayName))
             cells.add(TextCellValue(row.teacherDesignation))
             cells.add(TextCellValue(row.employeeType))
             sheet.appendRow(cells)

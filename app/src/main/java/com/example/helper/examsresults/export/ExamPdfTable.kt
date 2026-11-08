@@ -70,9 +70,9 @@ internal fun ExamPdfTable.sections(columnsPerPage: Int): List<ExamPdfSection> {
  * Only columns whose value the app can compute are printed: built-in kinds
  * carry their number already, while a custom column is an Excel formula the
  * device does not evaluate. A custom column is therefore left out of the PDF
- * instead of printing an empty cell that would read like a zero. Total Max is
- * printed inside the Total Obtained cell (`205(400)`) instead of as its own
- * column.
+ * instead of printing an empty cell that would read like a zero. The exam
+ * maximum is stated once, in the Total Obtained header (`Total Obtained
+ * (400)`), not in every student's cell.
  */
 internal object ExamPdfTableBuilder {
 
@@ -89,10 +89,19 @@ internal object ExamPdfTableBuilder {
         val printable = columns.filter {
             it.enabled && it.kind != ExportColumnKind.CUSTOM && it.kind != ExportColumnKind.TOTAL_MAX
         }.sortedWith(compareBy({ it.sortOrder }, { it.id }))
+        val totalMax = subjects.sumOf { it.maxMarks }
 
         val headers = mutableListOf(S_NO, ROLL, NAME)
         subjects.forEach { subject -> headers.add(subject.name) }
-        printable.forEach { column -> headers.add(column.label) }
+        printable.forEach { column ->
+            headers.add(
+                if (column.kind == ExportColumnKind.TOTAL_OBTAINED) {
+                    "${column.label} ($totalMax)"
+                } else {
+                    column.label
+                },
+            )
+        }
 
         val subHeaders = mutableListOf("", "", MAX_MARKS)
         subjects.forEach { subject -> subHeaders.add(subject.maxMarks.toString()) }
@@ -148,7 +157,7 @@ internal object ExamPdfTableBuilder {
 
     private fun valueOf(column: ExportColumn, result: StudentResult, rank: String): String =
         when (column.kind) {
-            ExportColumnKind.TOTAL_OBTAINED -> formatTotal(result)
+            ExportColumnKind.TOTAL_OBTAINED -> formatNumber(result.totalObtained)
             ExportColumnKind.TOTAL_MAX -> formatNumber(result.totalMax)
             ExportColumnKind.PERCENTAGE -> "${formatNumber(result.percentage)}%"
             // A row with no marks has no verdict yet — same rule as the sheet.
@@ -161,13 +170,6 @@ internal object ExamPdfTableBuilder {
             ExportColumnKind.RANK -> rank
             ExportColumnKind.CUSTOM -> ""
         }
-
-    /** `205(400)`: the obtained mark with the exam's total in brackets. */
-    private fun formatTotal(result: StudentResult): String {
-        val obtained = formatNumber(result.totalObtained)
-        val max = result.totalMax.toInt()
-        return if (max <= 0) obtained else "$obtained($max)"
-    }
 
     /** `80`, `53.33`, never `80.0`: a printed mark should read like a mark. */
     fun formatNumber(value: Double): String {

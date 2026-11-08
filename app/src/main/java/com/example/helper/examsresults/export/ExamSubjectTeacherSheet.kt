@@ -18,10 +18,15 @@ internal data class SubjectTeacherRow(
     val passPercent: String?,
     val average: String?,
     val bands: List<String?>,
+    val teacherTitle: String = "",
     val teacherName: String = "",
     val teacherDesignation: String = "",
     val employeeType: String = "",
 ) {
+    /** `SMT. BHAVANA SONI`: the title is printed with the name, as page 3 does. */
+    val teacherDisplayName: String
+        get() = listOf(teacherTitle, teacherName).filter { it.isNotEmpty() }.joinToString(" ")
+
     fun metricCells(): List<String?> =
         listOf(strength, appeared, absent, passed, failed, total, passPercent, average) + bands
 }
@@ -123,6 +128,7 @@ internal object ExamSubjectTeacherSheet {
                 passPercent = "IF(C$row=0,0,E$row/C$row)",
                 average = "IF(C$row=0,0,SUM($marks)/C$row/$max)",
                 bands = fiveBands(marks, max),
+                teacherTitle = subject.title.orEmpty().trim(),
                 teacherName = subject.teacherName.orEmpty().trim(),
                 teacherDesignation = subject.teacherDesignation.orEmpty().trim(),
                 employeeType = subject.employeeType.orEmpty().trim(),

@@ -361,6 +361,7 @@ class ExamExcelWriterTest {
     fun `the Subject Teacher sheet carries the metrics, five bands and the teacher fields`() {
         val withTeachers = listOf(
             subjects[0].copy(
+                title = "SMT.",
                 teacherName = "Asha Verma",
                 teacherDesignation = "TGT-Math",
                 employeeType = "Regular",
@@ -384,7 +385,7 @@ class ExamExcelWriterTest {
             shared.contains("Name of Subject Teacher") && shared.contains("Designation") &&
                 shared.contains("Employee Type"),
         )
-        assertTrue("teacher name", shared.contains("Asha Verma"))
+        assertTrue("the title is printed with the teacher", shared.contains("SMT. Asha Verma"))
         assertTrue("designation", shared.contains("TGT-Science"))
         assertTrue("employee type", shared.contains("Contract"))
 
@@ -451,15 +452,22 @@ class ExamExcelWriterTest {
     }
 
     @Test
-    fun `the total reads as obtained out of the exam maximum`() {
+    fun `the total max is stated once in the header, not in every cell`() {
         val all = entries(workbook())
+        val shared = all["xl/sharedStrings.xml"].orEmpty()
 
         assertTrue(
-            "the 205(400) display keeps the real number inside the cell",
-            all["xl/styles.xml"].orEmpty().contains("""formatCode="0.##&quot;(150)&quot;""""),
+            "the header carries the exam maximum",
+            shared.contains("Total Obtained (150)"),
         )
-        val totalFormat = numberFormatId(all, "xl/worksheets/sheet1.xml", "F7")
-        assertTrue("the total cell uses a custom format: $totalFormat", (totalFormat?.toIntOrNull() ?: 0) >= 164)
+        assertFalse(
+            "the per-cell bracket format is gone",
+            all["xl/styles.xml"].orEmpty().contains("""&quot;(150)&quot;"""),
+        )
+        assertTrue(
+            "the total cell stays a real number",
+            (numberFormatId(all, "xl/worksheets/sheet1.xml", "F7")?.toIntOrNull() ?: 0) < 164,
+        )
     }
 
     @Test

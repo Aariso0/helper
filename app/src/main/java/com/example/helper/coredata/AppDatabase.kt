@@ -81,7 +81,7 @@ abstract class AppDatabase : RoomDatabase() {
         const val DATABASE_NAME = "helper.db"
 
         /** Schema version — @Database reads this; backup manifests record it. */
-        const val SCHEMA_VERSION = 4
+        const val SCHEMA_VERSION = 5
 
         @Volatile
         private var instance: AppDatabase? = null

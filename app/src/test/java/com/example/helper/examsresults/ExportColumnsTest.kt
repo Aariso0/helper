@@ -73,6 +73,61 @@ class ExportColumnsTest {
     }
 
     @Test
+    fun `a 1_2 layout loses the whole-number percentage and the Total Max column`() {
+        val stored = listOf(
+            ExportColumn(
+                id = ExportColumnDefaults.TOTAL_OBTAINED_ID,
+                label = "Total Obtained",
+                kind = ExportColumnKind.TOTAL_OBTAINED,
+                formula = ExportColumnDefaults.TOTAL_OBTAINED_TEMPLATE,
+                sortOrder = 0,
+            ),
+            ExportColumn(
+                id = ExportColumnDefaults.PERCENTAGE_ID,
+                label = "Percentage",
+                kind = ExportColumnKind.PERCENTAGE,
+                formula = "IF({Total Max}=0,0,{Total Obtained}/{Total Max}*100)",
+                sortOrder = 1,
+            ),
+            ExportColumn(
+                id = ExportColumnDefaults.TOTAL_MAX_ID,
+                label = "Total Max",
+                kind = ExportColumnKind.TOTAL_MAX,
+                formula = "",
+                sortOrder = 2,
+            ),
+        )
+
+        val effective = ExportColumnDefaults.effective(stored)
+
+        assertEquals(
+            listOf(ExportColumnKind.TOTAL_OBTAINED, ExportColumnKind.PERCENTAGE),
+            effective.map { it.kind },
+        )
+        assertEquals(
+            "the cell is formatted 0.00%, so the formula must produce a share",
+            ExportColumnDefaults.PERCENTAGE_TEMPLATE,
+            effective.first { it.kind == ExportColumnKind.PERCENTAGE }.formula,
+        )
+
+        val all = workbookEntries(effective)
+        val sheet = all["xl/worksheets/sheet1.xml"].orEmpty()
+
+        assertTrue(
+            "the exported percentage is a share again",
+            sheet.contains("<f>IF(150=0,0,F7/150)</f>"),
+        )
+        assertTrue(
+            "the maximum is stated once in the header",
+            all["xl/sharedStrings.xml"].orEmpty().contains("Total Obtained (150)"),
+        )
+        assertFalse(
+            "the Total Max column is gone",
+            all.values.joinToString("\n").contains("Total Max"),
+        )
+    }
+
+    @Test
     fun `deleting every computed column still exports the marks-only summary`() {
         val entries = workbookEntries(emptyList())
         val results = entries["xl/worksheets/sheet1.xml"].orEmpty() +

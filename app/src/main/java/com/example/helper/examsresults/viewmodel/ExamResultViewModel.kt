@@ -95,27 +95,40 @@ class ExamResultViewModel(
         if (max <= 0) return
         val pass = (passMarks.toIntOrNull() ?: 0).coerceIn(0, max)
         viewModelScope.launch {
-            examRepository.updateSubject(subject, max, pass)
+            examRepository.updateSubject(
+                subject.copy(
+                    title = subject.title?.trim()?.ifEmpty { null },
+                    teacherName = subject.teacherName?.trim()?.ifEmpty { null },
+                    teacherDesignation = subject.teacherDesignation?.trim()?.ifEmpty { null },
+                    employeeType = subject.employeeType?.trim()?.ifEmpty { null },
+                ),
+                max,
+                pass,
+            )
         }
     }
 
     /** Adds a subject to an exam that already exists (post-creation edit). */
-    fun addSubject(name: String, maxMarks: String, passMarks: String) {
-        val trimmed = name.trim()
+    fun addSubject(input: SubjectInput) {
+        val trimmed = input.name.trim()
         if (trimmed.isEmpty()) return
-        val max = maxMarks.toIntOrNull() ?: return
+        val max = input.maxMarks.toIntOrNull() ?: return
         if (max <= 0) return
-        val pass = (passMarks.toIntOrNull() ?: 0).coerceIn(0, max)
+        val pass = (input.passMarks.toIntOrNull() ?: 0).coerceIn(0, max)
         viewModelScope.launch {
             val sortOrder = (_uiState.value.subjects.maxOfOrNull { it.sortOrder } ?: -1) + 1
             examRepository.upsertSubject(
                 ExamSubject(
-                    id = UUID.randomUUID().toString(),
+                    id = input.id,
                     examId = examId,
                     name = trimmed,
                     maxMarks = max,
                     passMarks = pass,
                     sortOrder = sortOrder,
+                    title = input.title.trim().ifEmpty { null },
+                    teacherName = input.teacherName.trim().ifEmpty { null },
+                    teacherDesignation = input.teacherDesignation.trim().ifEmpty { null },
+                    employeeType = input.employeeType.trim().ifEmpty { null },
                 ),
             )
         }

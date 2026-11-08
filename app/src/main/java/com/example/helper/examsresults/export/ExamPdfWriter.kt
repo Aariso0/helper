@@ -64,7 +64,8 @@ object ExamPdfWriter {
     private const val MIN_NAME_WIDTH = ExamPdfPagePlan.MIN_NAME_WIDTH
     private const val MIN_DATA_WIDTH = ExamPdfPagePlan.MIN_DATA_WIDTH
     private const val SUBJECT_WIDTH = 48f
-    private const val TOTAL_WIDTH = 44f
+    /** Fits `Total Obtained` over `(400)` when the header wraps to two lines. */
+    private const val TOTAL_WIDTH = 66f
     private const val PERCENT_WIDTH = 40f
     private const val RESULT_WIDTH = 40f
     private const val RANK_WIDTH = 26f
@@ -562,7 +563,9 @@ object ExamPdfWriter {
     private fun subjectTeacherFields(subject: ExamSubject?): List<String> {
         if (subject == null) return emptyList()
         return listOf(
-            subject.teacherName.orEmpty().trim(),
+            listOf(subject.title.orEmpty().trim(), subject.teacherName.orEmpty().trim())
+                .filter { it.isNotEmpty() }
+                .joinToString(" "),
             subject.teacherDesignation.orEmpty().trim(),
             subject.employeeType.orEmpty().trim(),
         )

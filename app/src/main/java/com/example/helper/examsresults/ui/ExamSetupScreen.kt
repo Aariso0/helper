@@ -131,10 +131,25 @@ fun ExamSetupScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         OutlinedTextField(
+                            value = subject.title,
+                            onValueChange = {
+                                viewModel.updateSubjectDetails(
+                                    subject.id,
+                                    it,
+                                    subject.teacherName,
+                                    subject.teacherDesignation,
+                                    subject.employeeType,
+                                )
+                            },
+                            label = { Text("Title (SMT. / SHRI)") },
+                            modifier = Modifier.weight(0.8f),
+                        )
+                        OutlinedTextField(
                             value = subject.teacherName,
                             onValueChange = {
                                 viewModel.updateSubjectDetails(
                                     subject.id,
+                                    subject.title,
                                     it,
                                     subject.teacherDesignation,
                                     subject.employeeType,
@@ -143,11 +158,17 @@ fun ExamSetupScreen(
                             label = { Text("Teacher name") },
                             modifier = Modifier.weight(1f),
                         )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         OutlinedTextField(
                             value = subject.teacherDesignation,
                             onValueChange = {
                                 viewModel.updateSubjectDetails(
                                     subject.id,
+                                    subject.title,
                                     subject.teacherName,
                                     it,
                                     subject.employeeType,
@@ -156,20 +177,21 @@ fun ExamSetupScreen(
                             label = { Text("Designation") },
                             modifier = Modifier.weight(1f),
                         )
+                        OutlinedTextField(
+                            value = subject.employeeType,
+                            onValueChange = {
+                                viewModel.updateSubjectDetails(
+                                    subject.id,
+                                    subject.title,
+                                    subject.teacherName,
+                                    subject.teacherDesignation,
+                                    it,
+                                )
+                            },
+                            label = { Text("Employee type (optional)") },
+                            modifier = Modifier.weight(1f),
+                        )
                     }
-                    OutlinedTextField(
-                        value = subject.employeeType,
-                        onValueChange = {
-                            viewModel.updateSubjectDetails(
-                                subject.id,
-                                subject.teacherName,
-                                subject.teacherDesignation,
-                                it,
-                            )
-                        },
-                        label = { Text("Employee type (optional)") },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
                 }
             }
 

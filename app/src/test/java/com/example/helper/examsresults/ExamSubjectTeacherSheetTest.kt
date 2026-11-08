@@ -23,6 +23,7 @@ class ExamSubjectTeacherSheetTest {
             name = "Hindi",
             maxMarks = 40,
             passMarks = 14,
+            title = "SMT.",
             teacherName = "Asha Verma",
             teacherDesignation = "TGT-Hindi",
             employeeType = "Regular",
@@ -103,14 +104,18 @@ class ExamSubjectTeacherSheetTest {
     }
 
     @Test
-    fun `the three teacher fields are carried from the subject`() {
+    fun `the four teacher fields are carried from the subject`() {
         val hindi = rows().first()
         val math = rows()[1]
 
+        assertEquals("SMT.", hindi.teacherTitle)
         assertEquals("Asha Verma", hindi.teacherName)
+        assertEquals("SMT. Asha Verma", hindi.teacherDisplayName)
         assertEquals("TGT-Hindi", hindi.teacherDesignation)
         assertEquals("Regular", hindi.employeeType)
+        assertEquals("", math.teacherTitle)
         assertEquals("", math.teacherName)
+        assertEquals("", math.teacherDisplayName)
         assertEquals("", math.teacherDesignation)
         assertEquals("", math.employeeType)
     }

@@ -49,6 +49,7 @@ import com.example.helper.examsresults.export.ExamPdfWriter
 import com.example.helper.examsresults.export.ExportFormulaEngine
 import com.example.helper.examsresults.util.AbsentPlanner
 import com.example.helper.examsresults.viewmodel.ExamResultViewModel
+import com.example.helper.examsresults.viewmodel.SubjectInput
 import com.example.helper.share.asShareableUri
 import com.example.helper.share.shareFiles
 import kotlinx.coroutines.CoroutineScope
@@ -395,7 +396,7 @@ fun ExamDetailScreen(
 
     if (showAddSubject) {
         AddSubjectDialog(
-            onAdd = { name, max, pass -> viewModel.addSubject(name, max, pass) },
+            onAdd = { input -> viewModel.addSubject(input) },
             onDismiss = { showAddSubject = false },
         )
     }
@@ -403,7 +404,7 @@ fun ExamDetailScreen(
     subjectBeingEdited?.let { subject ->
         EditSubjectDialog(
             subject = subject,
-            onSave = { max, pass -> viewModel.updateSubject(subject, max, pass) },
+            onSave = { updated, max, pass -> viewModel.updateSubject(updated, max, pass) },
             onDismiss = { subjectBeingEdited = null },
         )
     }
@@ -557,19 +558,26 @@ private fun SubjectPickerDialog(
 
 @Composable
 private fun AddSubjectDialog(
-    onAdd: (name: String, maxMarks: String, passMarks: String) -> Unit,
+    onAdd: (SubjectInput) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var name by remember { mutableStateOf("") }
     var maxMarks by remember { mutableStateOf("100") }
     var passMarks by remember { mutableStateOf("35") }
+    var title by remember { mutableStateOf("") }
+    var teacherName by remember { mutableStateOf("") }
+    var teacherDesignation by remember { mutableStateOf("") }
+    var employeeType by remember { mutableStateOf("") }
     val maxValid = (maxMarks.toIntOrNull() ?: 0) > 0
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Subject") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -594,12 +602,50 @@ private fun AddSubjectDialog(
                         singleLine = true,
                     )
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("Title (SMT. / SHRI)") },
+                        modifier = Modifier.weight(0.8f),
+                    )
+                    OutlinedTextField(
+                        value = teacherName,
+                        onValueChange = { teacherName = it },
+                        label = { Text("Teacher name") },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = teacherDesignation,
+                        onValueChange = { teacherDesignation = it },
+                        label = { Text("Designation") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = employeeType,
+                        onValueChange = { employeeType = it },
+                        label = { Text("Employee type") },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    onAdd(name, maxMarks, passMarks)
+                    onAdd(
+                        SubjectInput(
+                            name = name,
+                            maxMarks = maxMarks,
+                            passMarks = passMarks,
+                            title = title,
+                            teacherName = teacherName,
+                            teacherDesignation = teacherDesignation,
+                            employeeType = employeeType,
+                        ),
+                    )
                     onDismiss()
                 },
                 enabled = name.isNotBlank() && maxValid,
@@ -616,11 +662,17 @@ private fun AddSubjectDialog(
 @Composable
 private fun EditSubjectDialog(
     subject: ExamSubject,
-    onSave: (maxMarks: String, passMarks: String) -> Unit,
+    onSave: (ExamSubject, String, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var maxMarks by remember(subject.id) { mutableStateOf(subject.maxMarks.toString()) }
     var passMarks by remember(subject.id) { mutableStateOf(subject.passMarks.toString()) }
+    var title by remember(subject.id) { mutableStateOf(subject.title.orEmpty()) }
+    var teacherName by remember(subject.id) { mutableStateOf(subject.teacherName.orEmpty()) }
+    var teacherDesignation by remember(subject.id) {
+        mutableStateOf(subject.teacherDesignation.orEmpty())
+    }
+    var employeeType by remember(subject.id) { mutableStateOf(subject.employeeType.orEmpty()) }
     val max = maxMarks.toIntOrNull()
     val pass = passMarks.toIntOrNull()
     val maxValid = max != null && max > 0
@@ -631,7 +683,10 @@ private fun EditSubjectDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit ${subject.name}") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = maxMarks,
@@ -665,6 +720,34 @@ private fun EditSubjectDialog(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("Title (SMT. / SHRI)") },
+                        modifier = Modifier.weight(0.8f),
+                    )
+                    OutlinedTextField(
+                        value = teacherName,
+                        onValueChange = { teacherName = it },
+                        label = { Text("Teacher name") },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = teacherDesignation,
+                        onValueChange = { teacherDesignation = it },
+                        label = { Text("Designation") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = employeeType,
+                        onValueChange = { employeeType = it },
+                        label = { Text("Employee type") },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 Text(
                     "Lowering the total lowers any student mark above it to the new total.",
                     style = MaterialTheme.typography.bodySmall,
@@ -675,7 +758,16 @@ private fun EditSubjectDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    onSave(maxMarks, passMarks)
+                    onSave(
+                        subject.copy(
+                            title = title,
+                            teacherName = teacherName,
+                            teacherDesignation = teacherDesignation,
+                            employeeType = employeeType,
+                        ),
+                        maxMarks,
+                        passMarks,
+                    )
                     onDismiss()
                 },
                 enabled = canSave,

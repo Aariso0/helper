@@ -51,7 +51,7 @@ class ExamPdfTableTest {
         assertEquals(
             listOf(
                 "S.No.", "Roll No.", "Student Name", "Math", "Science",
-                "Total Obtained", "Percentage", "Result", "Rank",
+                "Total Obtained (150)", "Percentage", "Result", "Rank",
             ),
             table.headers,
         )
@@ -140,7 +140,7 @@ class ExamPdfTableTest {
         val table = ExamPdfTableBuilder.build(subjects, listOf(partial))
 
         assertEquals("53.33%", table.rows.single()[table.headers.indexOf("Percentage")])
-        assertEquals("80(150)", table.rows.single()[table.headers.indexOf("Total Obtained")])
+        assertEquals("80", table.rows.single()[table.headers.indexOf("Total Obtained (150)")])
     }
 
     @Test
@@ -217,7 +217,7 @@ class ExamPdfTableTest {
             assertEquals("Asha", page.rows.single()[2])
         }
         assertEquals(
-            listOf("Total Obtained", "Percentage", "Result", "Rank"),
+            listOf("Total Obtained (600)", "Percentage", "Result", "Rank"),
             pages.last().headers.drop(3),
         )
     }

@@ -23,6 +23,7 @@ data class SubjectInput(
     val name: String = "",
     val maxMarks: String = "100",
     val passMarks: String = "35",
+    val title: String = "",
     val teacherName: String = "",
     val teacherDesignation: String = "",
     val employeeType: String = "",
@@ -61,6 +62,7 @@ class ExamSetupViewModel(
 
     fun updateSubjectDetails(
         id: String,
+        title: String,
         teacherName: String,
         teacherDesignation: String,
         employeeType: String,
@@ -71,6 +73,7 @@ class ExamSetupViewModel(
                     it
                 } else {
                     it.copy(
+                        title = title,
                         teacherName = teacherName,
                         teacherDesignation = teacherDesignation,
                         employeeType = employeeType,
@@ -90,6 +93,7 @@ class ExamSetupViewModel(
         val subjectName = subject.name.trim()
         if (subjectName.isEmpty()) return
         if (
+            subject.title.isNotBlank() &&
             subject.teacherName.isNotBlank() &&
             subject.teacherDesignation.isNotBlank() &&
             subject.employeeType.isNotBlank()
@@ -107,6 +111,9 @@ class ExamSetupViewModel(
                         current
                     } else {
                         current.copy(
+                            title = current.title.ifBlank {
+                                reference.title.orEmpty()
+                            },
                             teacherName = current.teacherName.ifBlank {
                                 reference.teacherName.orEmpty()
                             },
@@ -149,6 +156,7 @@ class ExamSetupViewModel(
                     maxMarks = max,
                     passMarks = (input.passMarks.toIntOrNull() ?: 35).coerceIn(0, max),
                     sortOrder = index,
+                    title = input.title.trim().ifEmpty { null },
                     teacherName = input.teacherName.trim().ifEmpty { null },
                     teacherDesignation = input.teacherDesignation.trim().ifEmpty { null },
                     employeeType = input.employeeType.trim().ifEmpty { null },
