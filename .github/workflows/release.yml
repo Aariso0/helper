@@ -67,11 +67,16 @@ jobs:
           TAG=${GITHUB_REF_NAME}
           cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/helper-${TAG}.apk
 
+      - name: Write release notes from the tag
+        run: |
+          git fetch --tags --force
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > notes.md
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/apk/release/helper-${{ github.ref_name }}.apk
-          generate_release_notes: true
+          body_path: notes.md
           draft: false
           prerelease: false
         env:
