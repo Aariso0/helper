@@ -76,6 +76,12 @@ fun ExamSetupScreen(
                 label = { Text("Exam Name") },
                 modifier = Modifier.fillMaxWidth(),
             )
+            OutlinedTextField(
+                value = state.month,
+                onValueChange = viewModel::updateMonth,
+                label = { Text("Month (e.g. SEPTEMBER)") },
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             Text("Subjects", style = MaterialTheme.typography.titleMedium)
 

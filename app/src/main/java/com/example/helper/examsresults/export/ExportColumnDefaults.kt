@@ -33,11 +33,14 @@ object ExportColumnDefaults {
      * formulas (`>=33%`) and class averages.
      */
     const val PERCENTAGE_TEMPLATE =
-        "IF({Total Max}=0,0,{Total Obtained}/{Total Max})"
+        "IF({Total Max}=0,0,{Total}/{Total Max})"
 
     /** v1.2.0's default; it produced `6125` for `61.25%` in a `0.00%` cell. */
     private const val LEGACY_PERCENTAGE_TEMPLATE =
         "IF({Total Max}=0,0,{Total Obtained}/{Total Max}*100)"
+    /** v1.3.x template before the "Total" rename. */
+    private const val LEGACY_TOTAL_OBTAINED_PERCENTAGE_TEMPLATE =
+        "IF({Total Max}=0,0,{Total Obtained}/{Total Max})"
     const val RESULT_TEMPLATE =
         "IF(AND(COUNT({All Marks})=0,COUNTIF({All Marks},\"ABT\")=0),\"\"," +
             "IF(AND({All Pass Checks}),\"Pass\",\"Fail\"))"
@@ -45,7 +48,7 @@ object ExportColumnDefaults {
     fun columns(): List<ExportColumn> = listOf(
         ExportColumn(
             id = TOTAL_OBTAINED_ID,
-            label = "Total Obtained",
+            label = "Total",
             kind = ExportColumnKind.TOTAL_OBTAINED,
             formula = TOTAL_OBTAINED_TEMPLATE,
             sortOrder = 0,
@@ -81,10 +84,12 @@ object ExportColumnDefaults {
             stored.filterNot { it.id == CLEARED_LAYOUT_ID || it.kind == ExportColumnKind.TOTAL_MAX }
                 .map { column ->
                     // A layout saved on 1.2.0 keeps the old whole-number
-                    // percentage while the cell is formatted `0.00%`.
+                    // percentage while the cell is formatted `0.00%`. Layouts
+                    // from before the "Total" rename keep `{Total Obtained}`.
                     if (
                         column.kind == ExportColumnKind.PERCENTAGE &&
-                        column.formula == LEGACY_PERCENTAGE_TEMPLATE
+                        (column.formula == LEGACY_PERCENTAGE_TEMPLATE ||
+                            column.formula == LEGACY_TOTAL_OBTAINED_PERCENTAGE_TEMPLATE)
                     ) {
                         column.copy(formula = PERCENTAGE_TEMPLATE)
                     } else {
@@ -121,7 +126,7 @@ object ExportColumnDefaults {
 
     /** Field name that keeps resolving after a built-in column is renamed. */
     fun canonicalField(kind: ExportColumnKind): String? = when (kind) {
-        ExportColumnKind.TOTAL_OBTAINED -> "Total Obtained"
+        ExportColumnKind.TOTAL_OBTAINED -> "Total"
         ExportColumnKind.TOTAL_MAX -> "Total Max"
         ExportColumnKind.PERCENTAGE -> "Percentage"
         ExportColumnKind.RESULT -> "Result"

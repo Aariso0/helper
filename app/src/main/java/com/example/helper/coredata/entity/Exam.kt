@@ -22,6 +22,8 @@ data class Exam(
     val classId: String,
     val name: String,
     val examDate: Long? = null,
+    /** Free-text month label for exports (e.g. `SEPTEMBER`). Null falls back to [examDate]. */
+    val month: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
 )

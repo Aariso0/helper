@@ -106,6 +106,8 @@ fun ExamDetailScreen(
                             sessionLabel = state.sessionLabel,
                             teacherName = state.teacherName,
                             teacherDesignation = state.teacherDesignation,
+                            month = state.month,
+                            examDate = state.examDate,
                         )
                     }
                 }.onSuccess { file ->
@@ -142,6 +144,7 @@ fun ExamDetailScreen(
                         teacherName = state.teacherName,
                         teacherDesignation = state.teacherDesignation,
                         examDate = state.examDate,
+                        month = state.month,
                     )
                 }
             }.onSuccess { file ->

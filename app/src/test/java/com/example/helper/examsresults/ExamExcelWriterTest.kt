@@ -460,7 +460,7 @@ class ExamExcelWriterTest {
 
         assertTrue(
             "the header carries the exam maximum",
-            shared.contains("Total Obtained (150)"),
+            shared.contains("Total (150)"),
         )
         assertFalse(
             "the per-cell bracket format is gone",

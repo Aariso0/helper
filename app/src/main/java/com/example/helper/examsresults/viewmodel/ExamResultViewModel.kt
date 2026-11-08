@@ -34,6 +34,7 @@ data class ExamResultUiState(
     val teacherName: String = "",
     val teacherDesignation: String = "",
     val examDate: Long? = null,
+    val month: String = "",
 )
 
 /**
@@ -84,6 +85,7 @@ class ExamResultViewModel(
                     teacherName = schoolClass?.teacherName.orEmpty(),
                     teacherDesignation = schoolClass?.teacherDesignation.orEmpty(),
                     examDate = exam?.examDate,
+                    month = exam?.month.orEmpty(),
                 )
             }.collect { _uiState.value = it }
         }

@@ -24,6 +24,9 @@ import com.gyanoba.kexcel.utils.VerticalAlign
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 object ExamExcelWriter {
     fun write(
@@ -37,6 +40,8 @@ object ExamExcelWriter {
         sessionLabel: String = "",
         teacherName: String = "",
         teacherDesignation: String = "",
+        month: String = "",
+        examDate: Long? = null,
     ): File {
         val dir = File(context.cacheDir, "exams")
         if (!dir.exists()) dir.mkdirs()
@@ -54,6 +59,8 @@ object ExamExcelWriter {
                     sessionLabel = sessionLabel,
                     teacherName = teacherName,
                     teacherDesignation = teacherDesignation,
+                    month = month,
+                    examDate = examDate,
                 ),
             )
         }
@@ -71,6 +78,8 @@ object ExamExcelWriter {
         sessionLabel: String = "",
         teacherName: String = "",
         teacherDesignation: String = "",
+        month: String = "",
+        examDate: Long? = null,
     ): ByteArray {
         // The caller passes the saved layout; an empty list means the teacher
         // deleted every computed column and is exported as-is.
@@ -107,6 +116,8 @@ object ExamExcelWriter {
             sessionLabel = sessionLabel,
             teacherName = teacherName,
             teacherDesignation = teacherDesignation,
+            month = month,
+            examDate = examDate,
         )
 
         val headers = MutableList<CellValue?>(totalColumns) { null }
@@ -253,6 +264,23 @@ object ExamExcelWriter {
             sheet.setColumnWidth(computedStartCol + index - 1, width)
         }
 
+        val rankIndex = ordered.indexOfFirst { it.kind == ExportColumnKind.RANK }
+        if (rankIndex >= 0) {
+            val rankColumn = computedStartCol - 1 + rankIndex
+            results.forEachIndexed { index, result ->
+                val recorded = result.marksBySubject.isNotEmpty() || result.absentSubjectIds.isNotEmpty()
+                if (!recorded) return@forEachIndexed
+                val rank = 1 + results.count { it.totalObtained > result.totalObtained }
+                val colour = when (rank) {
+                    1 -> ExportPalette.RANK_1
+                    2 -> ExportPalette.RANK_2
+                    3 -> ExportPalette.RANK_3
+                    else -> null
+                } ?: return@forEachIndexed
+                fillCell(sheet, rankColumn, START_ROW - 1 + index, colour)
+            }
+        }
+
         // Clean print-out lines: a thin border on every used cell, including
         // blank marks, is a default of every exported sheet.
         applyBorders(
@@ -285,6 +313,8 @@ object ExamExcelWriter {
                 sessionLabel = sessionLabel,
                 teacherName = teacherName,
                 teacherDesignation = teacherDesignation,
+                month = month,
+                examDate = examDate,
                 resultsSheet = RESULTS_SHEET_NAME,
                 firstRow = START_ROW,
                 lastRow = lastRow,
@@ -300,6 +330,8 @@ object ExamExcelWriter {
                 sessionLabel = sessionLabel,
                 teacherName = teacherName,
                 teacherDesignation = teacherDesignation,
+                month = month,
+                examDate = examDate,
                 resultsSheet = RESULTS_SHEET_NAME,
                 firstRow = START_ROW,
                 lastRow = lastRow,
@@ -338,6 +370,9 @@ object ExamExcelWriter {
         sessionLabel: String,
         teacherName: String,
         teacherDesignation: String,
+        month: String = "",
+        examDate: Long? = null,
+        statementTitle: String = "CONSOLIDATED MARKS - STATEMENT",
     ) {
         val lastColumn = totalColumns - 1
 
@@ -359,7 +394,10 @@ object ExamExcelWriter {
         val sessionStart = (lastColumn - 2).coerceIn(1, lastColumn)
         val sessionEnd = (lastColumn - 1).coerceIn(sessionStart, lastColumn)
         examRow[0] = TextCellValue(examName.trim())
-        examRow[sessionStart] = TextCellValue(sessionLabel.trim())
+        val middle = listOf(effectiveMonthLabel(month, examDate), sessionLabel.trim())
+            .filter { it.isNotEmpty() }
+            .joinToString(" ")
+        examRow[sessionStart] = TextCellValue(middle)
         examRow[lastColumn] = TextCellValue(
             className.trim().takeIf { it.isNotEmpty() }?.let { "CLASS-$it" }.orEmpty(),
         )
@@ -393,7 +431,7 @@ object ExamExcelWriter {
         }
 
         val titleRow = MutableList<CellValue?>(totalColumns) { null }
-        titleRow[0] = TextCellValue("CONSOLIDATED MARKS - STATEMENT")
+        titleRow[0] = TextCellValue(statementTitle)
         sheet.appendRow(titleRow)
         mergeRow(sheet, BANNER_ROW + 1, 0, lastColumn)
         setStyle(sheet, 0, BANNER_ROW + 1) {
@@ -470,6 +508,8 @@ object ExamExcelWriter {
         subjects: List<ExamSubject>,
         percentageColumn: String?,
         resultColumn: String?,
+        month: String = "",
+        examDate: Long? = null,
     ) {
         val rows = ExamSummarySheet.rows(
             resultsSheet = resultsSheet,
@@ -491,6 +531,9 @@ object ExamExcelWriter {
             sessionLabel = sessionLabel,
             teacherName = teacherName,
             teacherDesignation = teacherDesignation,
+            month = month,
+            examDate = examDate,
+            statementTitle = "",
         )
 
         val title = MutableList<CellValue?>(ExamSummarySheet.LAST_COLUMN) { null }
@@ -617,6 +660,8 @@ object ExamExcelWriter {
         subjects: List<ExamSubject>,
         percentageColumn: String?,
         resultColumn: String?,
+        month: String = "",
+        examDate: Long? = null,
     ) {
         val rows = ExamSubjectTeacherSheet.rows(
             resultsSheet = resultsSheet,
@@ -638,6 +683,9 @@ object ExamExcelWriter {
             sessionLabel = sessionLabel,
             teacherName = teacherName,
             teacherDesignation = teacherDesignation,
+            month = month,
+            examDate = examDate,
+            statementTitle = "",
         )
 
         val title = MutableList<CellValue?>(ExamSubjectTeacherSheet.LAST_COLUMN) { null }
@@ -902,6 +950,18 @@ object ExamExcelWriter {
     private const val HEADER_ROW = 5
     private const val MAX_MARKS_ROW = 6
     private const val BANNER_ROW = 1
+
+    private fun effectiveMonthLabel(month: String, examDate: Long?): String {
+        val explicit = month.trim()
+        val value = if (explicit.isNotEmpty()) {
+            explicit
+        } else if (examDate != null) {
+            SimpleDateFormat("MMMM", Locale.US).format(Date(examDate)).uppercase(Locale.US)
+        } else {
+            ""
+        }
+        return if (value.isEmpty()) "" else "MONTH- $value"
+    }
 
     private fun numberCell(value: Double): CellValue =
         if (value % 1.0 == 0.0) IntCellValue(value.toLong()) else DoubleCellValue(value)

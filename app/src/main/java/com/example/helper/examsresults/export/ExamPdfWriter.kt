@@ -74,6 +74,9 @@ object ExamPdfWriter {
     private val HEADER_YELLOW = Color.parseColor(ExportPalette.HEADER_YELLOW)
     private val SUBJECT_CYAN = Color.parseColor(ExportPalette.SUBJECT_CYAN)
     private val TITLE_CREAM = Color.parseColor(ExportPalette.TITLE_CREAM)
+    private val RANK_1 = Color.parseColor(ExportPalette.RANK_1)
+    private val RANK_2 = Color.parseColor(ExportPalette.RANK_2)
+    private val RANK_3 = Color.parseColor(ExportPalette.RANK_3)
     private val BAND_BLUE = Color.parseColor(ExportPalette.BAND_BLUE)
     private val BAND_GREY = Color.parseColor(ExportPalette.BAND_GREY)
     private val BAND_GREEN = Color.parseColor(ExportPalette.BAND_GREEN)
@@ -118,6 +121,7 @@ object ExamPdfWriter {
         teacherName: String = "",
         teacherDesignation: String = "",
         examDate: Long? = null,
+        month: String = "",
     ): File {
         val table = ExamPdfTableBuilder.build(subjects, results, columns)
         val banner = ExamPdfBanner(
@@ -128,6 +132,7 @@ object ExamPdfWriter {
             teacherName = teacherName,
             teacherDesignation = teacherDesignation,
             examDate = examDate,
+            month = month,
         )
         val dir = File(context.cacheDir, "exams").apply { mkdirs() }
         val safeName = examName.replace("[^A-Za-z0-9]".toRegex(), "_")
@@ -191,7 +196,7 @@ object ExamPdfWriter {
                 canvas = page.canvas,
                 section = section,
                 rows = rows,
-                widths = columnWidths(section),
+                widths = columnWidths(section, fit),
                 banner = banner,
                 fit = fit,
                 pageNumber = index + 1,
@@ -284,6 +289,7 @@ object ExamPdfWriter {
         left: Float,
         right: Float,
         top: Float,
+        statementTitle: String = "CONSOLIDATED MARKS - STATEMENT",
     ) {
         val width = right - left
 
@@ -318,7 +324,7 @@ object ExamPdfWriter {
             row2Bottom,
             rowPaint,
         )
-        val middle = listOf(monthLabel(banner.examDate), banner.sessionLabel.trim())
+        val middle = listOf(effectiveMonthLabel(banner.month, banner.examDate), banner.sessionLabel.trim())
             .filter { it.isNotEmpty() }
             .joinToString(" ")
         // The month + session block is centred on the page, not between the
@@ -346,7 +352,7 @@ object ExamPdfWriter {
         val row3Bottom = row2Bottom + BANNER_ROW_3
         drawCentered(
             canvas,
-            "CONSOLIDATED MARKS - STATEMENT",
+            statementTitle,
             left + CELL_PADDING,
             right - CELL_PADDING,
             row2Bottom,
@@ -377,7 +383,7 @@ object ExamPdfWriter {
     ) {
         val left = MARGIN
         val right = LANDSCAPE_WIDTH - MARGIN
-        drawBanner(canvas, banner, left, right, MARGIN)
+        drawBanner(canvas, banner, left, right, MARGIN, statementTitle = "")
 
         val widths = summaryColumnWidths()
         val titleTop = MARGIN + BANNER_HEIGHT
@@ -461,7 +467,7 @@ object ExamPdfWriter {
     ) {
         val left = MARGIN
         val right = LANDSCAPE_WIDTH - MARGIN
-        drawBanner(canvas, banner, left, right, MARGIN)
+        drawBanner(canvas, banner, left, right, MARGIN, statementTitle = "")
 
         val widths = subjectTeacherColumnWidths()
         val titleTop = MARGIN + BANNER_HEIGHT
@@ -850,8 +856,14 @@ object ExamPdfWriter {
                 FILL.color = HEADER_YELLOW
                 canvas.drawRect(x, top, right, bottom, FILL)
             }
-
             val raw = row.getOrElse(index) { "" }
+            if (kind == ExportColumnKind.RANK) {
+                when (raw) {
+                    "1" -> { FILL.color = RANK_1; canvas.drawRect(x, top, right, bottom, FILL) }
+                    "2" -> { FILL.color = RANK_2; canvas.drawRect(x, top, right, bottom, FILL) }
+                    "3" -> { FILL.color = RANK_3; canvas.drawRect(x, top, right, bottom, FILL) }
+                }
+            }
             val paint = if (isFail(raw)) {
                 textPaint(if (index == 2) fit.nameTextSize else fit.textSize, bold = true, italic = true)
             } else {
@@ -991,49 +1003,85 @@ object ExamPdfWriter {
     private fun isFail(value: String): Boolean = value.equals("Fail", ignoreCase = true)
 
     /**
-     * S.No. is narrow, the name is the widest column, and the data columns get
-     * their preferred width, scaled down together when the page is full.
-     * Leftover space goes to the name, which is what a teacher reads first.
+     * Priority (high→low): S.No. > Roll No. > Name > subject marks > Percentage
+     * > Result > Rank > everything else. Lower priority shrinks first until the
+     * page fits; headings are as important as entries, so a higher-priority
+     * heading is not truncated to make room for a lower-priority column.
      */
-    private fun columnWidths(section: ExamPdfSection): FloatArray {
+    private fun columnWidths(section: ExamPdfSection, fit: ExamPdfFit): FloatArray {
         val usable = usableWidth()
-        val dataCount = (section.headers.size - EXAM_PDF_FIXED_COLUMNS).coerceAtLeast(0)
-        val availableForData = usable - SERIAL_WIDTH - ROLL_WIDTH - MIN_NAME_WIDTH
-        val preferred = FloatArray(dataCount) { index ->
-            when (section.kinds.getOrNull(index + EXAM_PDF_FIXED_COLUMNS)) {
-                null -> SUBJECT_WIDTH
-                ExportColumnKind.TOTAL_OBTAINED -> TOTAL_WIDTH
-                ExportColumnKind.PERCENTAGE -> PERCENT_WIDTH
-                ExportColumnKind.RESULT -> RESULT_WIDTH
-                ExportColumnKind.RANK -> RANK_WIDTH
-                else -> SUBJECT_WIDTH
-            }
+        val n = section.headers.size
+        if (n == 0) return FloatArray(0)
+        val headerPaint = textPaint(fit.textSize.coerceAtLeast(6f), bold = true)
+        val bodyPaint = textPaint(fit.textSize)
+        val priorities = IntArray(n) { index -> columnPriority(index, section.kinds.getOrNull(index)) }
+        val need = FloatArray(n) { index ->
+            val header = section.headers.getOrElse(index) { "" }
+            val headerW = headerPaint.measureText(header) + 2 * CELL_PADDING
+            val contentW = contentFloor(index, section.kinds.getOrNull(index), bodyPaint) + 2 * CELL_PADDING
+            maxOf(headerW, contentW, absoluteFloor(index, priorities[index]))
         }
-        val preferredSum = preferred.sum()
-        val dataScale = if (preferredSum > availableForData && preferredSum > 0f) {
-            availableForData / preferredSum
-        } else {
-            1f
-        }
-        val dataWidths = FloatArray(dataCount) { index -> preferred[index] * dataScale }
-        val nameWidth = (usable - SERIAL_WIDTH - ROLL_WIDTH - dataWidths.sum())
-            .coerceAtLeast(MIN_NAME_WIDTH)
-
-        val widths = FloatArray(section.headers.size) { index ->
-            when {
-                index == 0 -> SERIAL_WIDTH
-                index == 1 -> ROLL_WIDTH
-                index == 2 -> nameWidth
-                else -> dataWidths.getOrElse(index - EXAM_PDF_FIXED_COLUMNS) { 0f }
-            }
+        // Never truncate high-priority headings; low priority may shrink to a
+        // content floor when space runs out.
+        val minWidth = FloatArray(n) { index ->
+            val header = section.headers.getOrElse(index) { "" }
+            val headerW = headerPaint.measureText(header) + 2 * CELL_PADDING
+            val contentW = contentFloor(index, section.kinds.getOrNull(index), bodyPaint) + 2 * CELL_PADDING
+            if (priorities[index] <= 4) maxOf(headerW, contentW, 12f) else maxOf(contentW, 12f)
         }
 
-        val total = widths.sum()
-        if (total > usable && total > 0f) {
-            val scale = usable / total
-            for (index in widths.indices) widths[index] *= scale
+        val widths = need.copyOf()
+        var deficit = widths.sum() - usable
+        if (deficit <= 0f) {
+            if (n > 2) widths[2] += -deficit // extra room to the name
+            return widths
+        }
+        val order = (0 until n).sortedByDescending { priorities[it] }
+        for (i in order) {
+            if (deficit <= 0f) break
+            val take = (widths[i] - minWidth[i]).coerceAtLeast(0f).coerceAtMost(deficit)
+            widths[i] -= take
+            deficit -= take
+        }
+        if (deficit > 0f) {
+            val total = widths.sum()
+            if (total > 0f) for (i in widths.indices) widths[i] *= usable / total
         }
         return widths
+    }
+
+    private fun columnPriority(index: Int, kind: ExportColumnKind?): Int = when {
+        index == 0 -> 0
+        index == 1 -> 1
+        index == 2 -> 2
+        index >= EXAM_PDF_FIXED_COLUMNS && kind == null -> 3
+        kind == ExportColumnKind.PERCENTAGE -> 4
+        kind == ExportColumnKind.RESULT -> 5
+        kind == ExportColumnKind.RANK -> 6
+        else -> 7
+    }
+
+    private fun absoluteFloor(index: Int, priority: Int): Float = when {
+        index == 0 -> SERIAL_WIDTH
+        index == 1 -> ROLL_WIDTH
+        index == 2 -> MIN_NAME_WIDTH
+        priority <= 4 -> 26f
+        else -> 18f
+    }
+
+    private fun contentFloor(index: Int, kind: ExportColumnKind?, paint: TextPaint): Float {
+        val sample = when {
+            index == 0 -> "99"
+            index == 1 -> "9999"
+            index == 2 -> "Student Name Here"
+            index >= EXAM_PDF_FIXED_COLUMNS && kind == null -> "100"
+            kind == ExportColumnKind.PERCENTAGE -> "100.00%"
+            kind == ExportColumnKind.RESULT -> "Fail"
+            kind == ExportColumnKind.RANK -> "99"
+            kind == ExportColumnKind.TOTAL_OBTAINED -> "999(999)"
+            else -> "9999"
+        }
+        return paint.measureText(sample)
     }
 
     private fun availableBodyHeight(): Float {
@@ -1044,10 +1092,16 @@ object ExamPdfWriter {
 
     private fun usableWidth(): Float = PAGE_WIDTH - 2 * MARGIN
 
-    private fun monthLabel(examDate: Long?): String {
-        if (examDate == null) return ""
-        val month = MONTH_FORMAT.get()?.format(Date(examDate)).orEmpty().uppercase(Locale.US)
-        return "MONTH- $month"
+    private fun effectiveMonthLabel(month: String, examDate: Long?): String {
+        val explicit = month.trim()
+        val value = if (explicit.isNotEmpty()) {
+            explicit
+        } else if (examDate != null) {
+            MONTH_FORMAT.get()?.format(Date(examDate)).orEmpty().uppercase(Locale.US)
+        } else {
+            ""
+        }
+        return if (value.isEmpty()) "" else "MONTH- $value"
     }
 
     private fun classTeacherLine(name: String, designation: String): String {
@@ -1082,4 +1136,5 @@ private data class ExamPdfBanner(
     val teacherName: String,
     val teacherDesignation: String,
     val examDate: Long?,
+    val month: String = "",
 )

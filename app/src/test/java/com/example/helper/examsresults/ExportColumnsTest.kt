@@ -53,10 +53,11 @@ class ExportColumnsTest {
         val all = workbookEntries(ExportColumnDefaults.columns())
         val text = all.values.joinToString("\n")
 
-        assertTrue(text.contains("Total Obtained"))
+        assertTrue(text.contains("Total (150)"))
         assertTrue(text.contains("Percentage"))
         assertTrue(text.contains("Result"))
         assertTrue(text.contains("Rank"))
+        assertFalse("default uses the short name", text.contains("Total Obtained"))
         assertFalse("Total Max is printed inside the total, not as a column", text.contains("Total Max"))
         assertTrue("total starts the computed block", text.contains("<f>SUM(D7:E7)</f>"))
         assertTrue(
@@ -135,6 +136,7 @@ class ExportColumnsTest {
 
         assertTrue(results.contains("Roll No."))
         assertTrue(results.contains("Student Name"))
+        assertFalse(results.contains("Total (150)"))
         assertFalse(results.contains("Total Obtained"))
         assertFalse(results.contains("Result"))
         // The summary's per-subject analysis reads only names and marks, so it
@@ -422,14 +424,14 @@ class ExportColumnsTest {
     }
 
     @Test
-    fun `rank needs a total obtained column`() {
+    fun `rank needs a total column`() {
         val columns = ExportColumnDefaults.columns()
             .filterNot { it.kind == ExportColumnKind.TOTAL_OBTAINED }
         val issues = ExportFormulaEngine.validate(columns, subjects)
 
         assertTrue(
             issues.any {
-                it.columnLabel == "Rank" && it.message.contains("Total Obtained")
+                it.columnLabel == "Rank" && it.message.contains("Total column")
             },
         )
     }

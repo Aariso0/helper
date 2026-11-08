@@ -34,6 +34,7 @@ internal object ExportFormulaEngine {
     private const val ALL_MARKS = "All Marks"
     private const val ALL_PASS_CHECKS = "All Pass Checks"
     private const val TOTAL_MAX = "Total Max"
+    private const val LEGACY_TOTAL = "Total Obtained"
 
     private data class Layout(
         val subjects: List<ExamSubject>,
@@ -100,6 +101,10 @@ internal object ExportFormulaEngine {
                         // subject maxima, so Percentage keeps working.
                         token.equals(TOTAL_MAX, ignoreCase = true) && subjects.isNotEmpty() ->
                             subjects.sumOf { it.maxMarks }.toString()
+                        token.equals(LEGACY_TOTAL, ignoreCase = true) -> {
+                            val totalIndex = columns.indexOfFirst { it.kind == ExportColumnKind.TOTAL_OBTAINED }
+                            if (totalIndex >= 0) "${columnLetter(computedColumnStart(subjects) + totalIndex)}$rowNum" else null
+                        }
                         else -> null
                     }
                 }
@@ -129,7 +134,7 @@ internal object ExportFormulaEngine {
     ): Result<String> {
         val totalIndex = columns.indexOfFirst { it.kind == ExportColumnKind.TOTAL_OBTAINED }
         if (totalIndex < 0) {
-            return Result.failure(FormulaError("Rank needs a Total Obtained column."))
+            return Result.failure(FormulaError("Rank needs a Total column."))
         }
         val column = columnLetter(computedColumnStart(subjects) + totalIndex)
         val firstRow = dataRows?.first ?: rowNum
@@ -149,7 +154,7 @@ internal object ExportFormulaEngine {
     ): String? {
         if (column.kind == ExportColumnKind.RANK) {
             return if (columns.none { it.kind == ExportColumnKind.TOTAL_OBTAINED }) {
-                "Rank needs a Total Obtained column."
+                "Rank needs a Total column."
             } else {
                 null
             }
@@ -228,7 +233,7 @@ internal object ExportFormulaEngine {
                 issues += ExportColumnIssue(
                     column.id,
                     displayLabel(column),
-                    "Rank needs a Total Obtained column.",
+                    "Rank needs a Total column.",
                 )
             }
         }

@@ -13,4 +13,8 @@ internal object ExportPalette {
     const val BAND_GREY = "#DBDBDB"
     const val BAND_GREEN = "#C6E0B4"
     const val BAND_AMBER = "#FFE699"
+    // Soft rank highlights (rank cell only): gold, silver, bronze.
+    const val RANK_1 = "#FFF3CD"
+    const val RANK_2 = "#E9ECEF"
+    const val RANK_3 = "#F8D7C4"
 }

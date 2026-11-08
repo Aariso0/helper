@@ -13,6 +13,7 @@ import java.util.UUID
 
 data class ExamSetupUiState(
     val examName: String = "",
+    val month: String = "",
     val subjects: List<SubjectInput> = listOf(SubjectInput()),
     val saving: Boolean = false,
     val createdExamId: String? = null,
@@ -37,6 +38,10 @@ class ExamSetupViewModel(
 
     fun updateExamName(name: String) {
         _uiState.value = _uiState.value.copy(examName = name)
+    }
+
+    fun updateMonth(month: String) {
+        _uiState.value = _uiState.value.copy(month = month)
     }
 
     fun addSubject() {
@@ -143,6 +148,7 @@ class ExamSetupViewModel(
                     classId = classId,
                     name = state.examName.trim(),
                     examDate = now,
+                    month = state.month.trim().ifEmpty { null },
                     createdAt = now,
                     updatedAt = now,
                 ),
