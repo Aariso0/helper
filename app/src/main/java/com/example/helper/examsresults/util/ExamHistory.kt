@@ -12,9 +12,10 @@ data class ExamSubjectMark(
     val obtained: Double?,
     val maxMarks: Int,
     val passMarks: Int,
+    val isAbsent: Boolean = false,
 ) {
-    val entered: Boolean get() = obtained != null
-    val failed: Boolean get() = obtained != null && obtained < passMarks
+    val entered: Boolean get() = !isAbsent && obtained != null
+    val failed: Boolean get() = isAbsent || (obtained != null && obtained < passMarks)
 }
 
 enum class ExamHistoryStatus { PASS, FAIL, NOT_ENTERED }
@@ -27,7 +28,7 @@ data class ExamHistoryEntry(
     val result: StudentResult,
     val subjectMarks: List<ExamSubjectMark>,
 ) {
-    val hasMarks: Boolean get() = subjectMarks.any { it.entered }
+    val hasMarks: Boolean get() = subjectMarks.any { it.entered || it.isAbsent }
     val enteredCount: Int get() = subjectMarks.count { it.entered }
     val failedSubjectNames: List<String> get() = subjectMarks.filter { it.failed }.map { it.subjectName }
 
@@ -78,6 +79,7 @@ object ExamHistory {
                             obtained = marksBySubject[subject.id]?.marksObtained,
                             maxMarks = subject.maxMarks,
                             passMarks = subject.passMarks,
+                            isAbsent = marksBySubject[subject.id]?.isAbsent == true,
                         )
                     },
                 )

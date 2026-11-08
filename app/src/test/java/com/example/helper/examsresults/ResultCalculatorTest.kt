@@ -115,9 +115,69 @@ class ResultCalculatorTest {
         assertFalse(result.isPass)
     }
 
+    @Test
+    fun `an absent subject adds zero, keeps the max and fails the subject`() {
+        val subjects = listOf(
+            subject("math", max = 100, pass = 35),
+            subject("science", max = 100, pass = 35),
+        )
+        val marks = listOf(mark("math", 80.0), absent("science"))
+
+        val result = ResultCalculator.calculate(student, subjects, marks)
+
+        assertEquals(80.0, result.totalObtained, 0.001)
+        assertEquals(200.0, result.totalMax, 0.001)
+        assertEquals(40.0, result.percentage, 0.001)
+        assertEquals(setOf("science"), result.absentSubjectIds)
+        assertEquals(listOf("science"), result.failedSubjects)
+        assertFalse(result.isPass)
+        assertEquals("absent is not a zero mark", mapOf("math" to 80.0), result.marksBySubject)
+    }
+
+    @Test
+    fun `only absent subjects still record a failing result`() {
+        val subjects = listOf(subject("math", max = 100, pass = 35))
+        val marks = listOf(absent("math"))
+
+        val result = ResultCalculator.calculate(student, subjects, marks)
+
+        assertTrue("nothing was entered", result.marksBySubject.isEmpty())
+        assertEquals(0.0, result.totalObtained, 0.001)
+        assertEquals(100.0, result.totalMax, 0.001)
+        assertEquals(setOf("math"), result.absentSubjectIds)
+        assertFalse(result.isPass)
+    }
+
+    @Test
+    fun `a blank subject stays different from an absent one`() {
+        val subjects = listOf(
+            subject("math", max = 100, pass = 35),
+            subject("science", max = 100, pass = 35),
+        )
+        // Math has no row at all (not entered), science is deliberately absent.
+        val marks = listOf(absent("science"))
+
+        val result = ResultCalculator.calculate(student, subjects, marks)
+
+        assertEquals(setOf("science"), result.absentSubjectIds)
+        assertTrue("a blank is not an absence", "math" !in result.absentSubjectIds)
+        assertEquals(listOf("science"), result.failedSubjects)
+        assertFalse("an absence is a recorded zero that fails", result.isPass)
+    }
+
     private fun subject(id: String, max: Int, pass: Int) =
         ExamSubject(id = id, examId = "e1", name = id, maxMarks = max, passMarks = pass)
 
     private fun mark(subjectId: String, obtained: Double) =
         ExamMark(id = "m-$subjectId", examId = "e1", subjectId = subjectId, studentId = "s1", marksObtained = obtained)
+
+    private fun absent(subjectId: String) =
+        ExamMark(
+            id = "m-$subjectId",
+            examId = "e1",
+            subjectId = subjectId,
+            studentId = "s1",
+            marksObtained = 0.0,
+            isAbsent = true,
+        )
 }

@@ -22,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -171,8 +172,10 @@ fun MarkEntryScreen(
                         student = student,
                         subject = state.subject,
                         value = state.marks[student.id].orEmpty(),
+                        absent = student.id in state.absent,
                         onValueChange = { viewModel.updateMark(student.id, it) },
                         onSave = { viewModel.saveMark(student.id) },
+                        onToggleAbsent = { viewModel.toggleAbsent(student.id) },
                         onFocused = { focusedStudentId = student.id },
                     )
                     HorizontalDivider()
@@ -196,8 +199,10 @@ private fun StudentMarkRow(
     student: Student,
     subject: ExamSubject?,
     value: String,
+    absent: Boolean,
     onValueChange: (String) -> Unit,
     onSave: () -> Unit,
+    onToggleAbsent: () -> Unit,
     onFocused: () -> Unit,
 ) {
     val bringIntoView = remember { BringIntoViewRequester() }
@@ -224,10 +229,11 @@ private fun StudentMarkRow(
             }
         }
         OutlinedTextField(
-            value = value,
+            value = if (absent) "ABT" else value,
             onValueChange = onValueChange,
             label = { Text("Marks") },
             isError = outOfRange,
+            enabled = !absent,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Next,
@@ -243,7 +249,7 @@ private fun StudentMarkRow(
                 },
             ),
             modifier = Modifier
-                .width(120.dp)
+                .width(110.dp)
                 .onFocusChanged { focusState ->
                     if (focusState.isFocused) {
                         onFocused()
@@ -251,6 +257,11 @@ private fun StudentMarkRow(
                     }
                 },
             singleLine = true,
+        )
+        FilterChip(
+            selected = absent,
+            onClick = onToggleAbsent,
+            label = { Text("ABT") },
         )
     }
 }

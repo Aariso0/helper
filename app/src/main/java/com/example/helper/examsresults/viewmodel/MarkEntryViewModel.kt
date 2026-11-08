@@ -29,6 +29,7 @@ data class MarkEntryUiState(
     val subjects: List<ExamSubject> = emptyList(),
     val subjectId: String = "",
     val marks: Map<String, String> = emptyMap(), // studentId -> entered mark
+    val absent: Set<String> = emptySet(), // studentIds marked absent for this subject
     val loading: Boolean = true,
 ) {
     val subject: ExamSubject? get() = subjects.firstOrNull { it.id == subjectId }
@@ -55,14 +56,16 @@ class MarkEntryViewModel(
                 examRepository.observeSubjects(examId),
                 examRepository.observeMarks(examId),
             ) { students, subjects, marks ->
-                val entered = marks
-                    .filter { it.subjectId == subjectId }
+                val subjectMarks = marks.filter { it.subjectId == subjectId }
+                val entered = subjectMarks
+                    .filterNot { it.isAbsent }
                     .associate { mark -> mark.studentId to formatMark(mark.marksObtained) }
                 MarkEntryUiState(
                     students = students,
                     subjects = subjects,
                     subjectId = subjectId,
                     marks = entered,
+                    absent = subjectMarks.filter { it.isAbsent }.map { it.studentId }.toSet(),
                     loading = false,
                 )
             }.collect { _uiState.value = it }
@@ -75,8 +78,46 @@ class MarkEntryViewModel(
         val parsed = cleaned.toDoubleOrNull()
         val max = _uiState.value.subject?.maxMarks
         if (parsed != null && max != null && parsed > max) return
+        // Typing a number is the third state winning: an absent row becomes a
+        // normal mark when it is saved.
         _uiState.value = _uiState.value.copy(
             marks = _uiState.value.marks + (studentId to cleaned),
+            absent = _uiState.value.absent - studentId,
+        )
+    }
+
+    /**
+     * Toggles the subject between present and absent for one student. Turning
+     * it on saves a zero-mark absent row and clears any typed text; turning it
+     * off removes that row entirely, which is different from a `0`.
+     */
+    fun toggleAbsent(studentId: String) {
+        val state = _uiState.value
+        val subject = state.subject ?: return
+        val wasAbsent = studentId in state.absent
+        viewModelScope.launch {
+            withContext(NonCancellable) {
+                val existing = examRepository.getMarks(examId)
+                    .firstOrNull { it.studentId == studentId && it.subjectId == subject.id }
+                if (wasAbsent) {
+                    existing?.let { examRepository.deleteMark(it) }
+                } else {
+                    examRepository.upsertMark(
+                        ExamMark(
+                            id = existing?.id ?: UUID.randomUUID().toString(),
+                            examId = examId,
+                            subjectId = subject.id,
+                            studentId = studentId,
+                            marksObtained = 0.0,
+                            isAbsent = true,
+                        ),
+                    )
+                }
+            }
+        }
+        _uiState.value = state.copy(
+            marks = if (wasAbsent) state.marks else state.marks - studentId,
+            absent = if (wasAbsent) state.absent - studentId else state.absent + studentId,
         )
     }
 
@@ -95,6 +136,7 @@ class MarkEntryViewModel(
                         subjectId = subject.id,
                         studentId = studentId,
                         marksObtained = number,
+                        isAbsent = false,
                     ),
                 )
             }
@@ -123,6 +165,7 @@ class MarkEntryViewModel(
                         subjectId = subject.id,
                         studentId = student.id,
                         marksObtained = number,
+                        isAbsent = false,
                     )
                 }
                 if (toSave.isNotEmpty()) {

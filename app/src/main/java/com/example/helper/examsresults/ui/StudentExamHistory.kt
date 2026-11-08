@@ -235,7 +235,7 @@ private fun SubjectMarkRow(mark: ExamSubjectMark) {
             )
         }
         Text(
-            text = mark.obtained?.let(::formatMark) ?: "Not entered",
+            text = if (mark.isAbsent) "ABT" else mark.obtained?.let(::formatMark) ?: "Not entered",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (mark.failed) FontWeight.SemiBold else FontWeight.Normal,
             color = valueColor,

@@ -12,6 +12,12 @@ data class StudentResult(
     val percentage: Double,
     val isPass: Boolean,
     val failedSubjects: List<String>,
+    /**
+     * Subjects deliberately marked absent. They contribute 0 to the total and
+     * fail the subject, but are kept out of [marksBySubject] so "nothing
+     * entered" and "absent" stay different states.
+     */
+    val absentSubjectIds: Set<String> = emptySet(),
 )
 
 object ResultCalculator {
@@ -24,6 +30,7 @@ object ResultCalculator {
         var totalObtained = 0.0
         var totalMax = 0.0
         val failed = mutableListOf<String>()
+        val absent = mutableSetOf<String>()
         val perSubject = mutableMapOf<String, Double>()
 
         subjects.forEach { subject ->
@@ -31,11 +38,20 @@ object ResultCalculator {
             // A missing mark is not a zero: it is not entered yet, so it cannot
             // fail the subject and is left out of `failedSubjects`. It still
             // counts toward the total max so the percentage is over the paper.
-            if (mark != null) {
-                perSubject[subject.id] = mark.marksObtained
-                totalObtained += mark.marksObtained
-                if (mark.marksObtained < subject.passMarks.toDouble()) {
+            when {
+                mark == null -> Unit
+                // An absent subject is a deliberate state: it adds 0 to the
+                // total, keeps the paper's max in the denominator and fails.
+                mark.isAbsent -> {
+                    absent.add(subject.id)
                     failed.add(subject.id)
+                }
+                else -> {
+                    perSubject[subject.id] = mark.marksObtained
+                    totalObtained += mark.marksObtained
+                    if (mark.marksObtained < subject.passMarks.toDouble()) {
+                        failed.add(subject.id)
+                    }
                 }
             }
             totalMax += subject.maxMarks.toDouble()
@@ -54,6 +70,7 @@ object ResultCalculator {
             // if other subjects are still unentered.
             isPass = perSubject.isNotEmpty() && failed.isEmpty(),
             failedSubjects = failed,
+            absentSubjectIds = absent,
         )
     }
 }
