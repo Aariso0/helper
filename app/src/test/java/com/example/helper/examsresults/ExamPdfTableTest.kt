@@ -6,7 +6,6 @@ import com.example.helper.coredata.entity.ExportColumnKind
 import com.example.helper.coredata.entity.Student
 import com.example.helper.examsresults.export.ExamPdfTableBuilder
 import com.example.helper.examsresults.export.ExportColumnDefaults
-import com.example.helper.examsresults.export.ExportHeading
 import com.example.helper.examsresults.export.sections
 import com.example.helper.examsresults.util.StudentResult
 import org.junit.Assert.assertEquals
@@ -51,8 +50,8 @@ class ExamPdfTableTest {
 
         assertEquals(
             listOf(
-                "S.No.", "Roll No.", "Student Name", "Math (100)", "Science (50)",
-                "Total Obtained", "Total Max", "Percentage", "Result",
+                "S.No.", "Roll No.", "Student Name", "Math", "Science",
+                "Total Obtained", "Percentage", "Result", "Rank",
             ),
             table.headers,
         )
@@ -97,8 +96,42 @@ class ExamPdfTableTest {
         )
         val table = ExamPdfTableBuilder.build(subjects, listOf(blank))
 
-        assertEquals("", table.rows.single()[table.headers.indexOf("Math (100)")])
+        assertEquals("", table.rows.single()[table.headers.indexOf("Math")])
         assertEquals("", table.rows.single()[table.headers.indexOf("Result")])
+        assertEquals("", table.rows.single()[table.headers.indexOf("Rank")])
+    }
+
+    @Test
+    fun `an absent subject prints ABT and still gets a Fail verdict`() {
+        val absent = asha.copy(
+            marksBySubject = mapOf("math" to 80.0),
+            totalObtained = 80.0,
+            percentage = 53.333,
+            isPass = false,
+            failedSubjects = listOf("science"),
+            absentSubjectIds = setOf("science"),
+        )
+        val table = ExamPdfTableBuilder.build(subjects, listOf(absent))
+
+        assertEquals("ABT", table.rows.single()[table.headers.indexOf("Science")])
+        assertEquals("Fail", table.rows.single()[table.headers.indexOf("Result")])
+    }
+
+    @Test
+    fun `an only-absent row is not mistaken for not entered`() {
+        val absent = asha.copy(
+            marksBySubject = emptyMap(),
+            totalObtained = 0.0,
+            percentage = 0.0,
+            isPass = false,
+            failedSubjects = listOf("math", "science"),
+            absentSubjectIds = setOf("math", "science"),
+        )
+        val table = ExamPdfTableBuilder.build(subjects, listOf(absent))
+
+        assertEquals("ABT", table.rows.single()[table.headers.indexOf("Math")])
+        assertEquals("ABT", table.rows.single()[table.headers.indexOf("Science")])
+        assertEquals("Fail", table.rows.single()[table.headers.indexOf("Result")])
     }
 
     @Test
@@ -107,7 +140,7 @@ class ExamPdfTableTest {
         val table = ExamPdfTableBuilder.build(subjects, listOf(partial))
 
         assertEquals("53.33%", table.rows.single()[table.headers.indexOf("Percentage")])
-        assertEquals("80", table.rows.single()[table.headers.indexOf("Total Obtained")])
+        assertEquals("80(150)", table.rows.single()[table.headers.indexOf("Total Obtained")])
     }
 
     @Test
@@ -140,6 +173,26 @@ class ExamPdfTableTest {
     }
 
     @Test
+    fun `rank shares a place on ties and skips the next`() {
+        fun withTotal(id: String, name: String, roll: String, total: Double) = asha.copy(
+            student = student(id, name, roll),
+            totalObtained = total,
+        )
+        val table = ExamPdfTableBuilder.build(
+            subjects,
+            listOf(
+                withTotal("s1", "Asha", "1", 130.0),
+                withTotal("s2", "Ravi", "2", 120.0),
+                withTotal("s3", "Nila", "3", 120.0),
+                withTotal("s4", "Kiran", "4", 100.0),
+            ),
+        )
+        val rankIndex = table.headers.indexOf("Rank")
+
+        assertEquals(listOf("1", "2", "2", "4"), table.rows.map { it[rankIndex] })
+    }
+
+    @Test
     fun `column pages repeat S No, roll and name and keep the computed columns last`() {
         val sixSubjects = (1..6).map { index ->
             ExamSubject(
@@ -164,7 +217,7 @@ class ExamPdfTableTest {
             assertEquals("Asha", page.rows.single()[2])
         }
         assertEquals(
-            listOf("Total Obtained", "Total Max", "Percentage", "Result"),
+            listOf("Total Obtained", "Percentage", "Result", "Rank"),
             pages.last().headers.drop(3),
         )
     }
@@ -176,12 +229,5 @@ class ExamPdfTableTest {
 
         assertEquals(1, pages.size)
         assertEquals(listOf("S.No.", "Roll No.", "Student Name"), pages.single().headers)
-    }
-
-    @Test
-    fun `the pdf heading names the exam and the class`() {
-        assertEquals("Half Yearly — Class 5-A", ExportHeading.title("Half Yearly", "5-A"))
-        assertEquals("Half Yearly", ExportHeading.title("Half Yearly", ""))
-        assertEquals("Class 5-A", ExportHeading.title("", "5-A"))
     }
 }

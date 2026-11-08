@@ -2,13 +2,16 @@ package com.example.helper.examsresults.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.helper.coredata.entity.ExamMark
 import com.example.helper.coredata.entity.ExamSubject
 import com.example.helper.coredata.entity.ExportColumn
 import com.example.helper.coredata.repository.ExamRepository
 import com.example.helper.coredata.repository.ExportColumnRepository
 import com.example.helper.coredata.repository.SchoolClassRepository
+import com.example.helper.coredata.repository.SchoolSessionRepository
 import com.example.helper.coredata.repository.StudentRepository
 import com.example.helper.examsresults.export.ExportColumnDefaults
+import com.example.helper.examsresults.util.AbsentPlanner
 import com.example.helper.examsresults.util.ResultCalculator
 import com.example.helper.examsresults.util.StudentResult
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +28,12 @@ data class ExamResultUiState(
     val className: String = "",
     val exportColumns: List<ExportColumn> = ExportColumnDefaults.columns(),
     val loading: Boolean = true,
+    // Banner fields, printed on the export: who and where the sheet belongs to.
+    val schoolName: String = "",
+    val sessionLabel: String = "",
+    val teacherName: String = "",
+    val teacherDesignation: String = "",
+    val examDate: Long? = null,
 )
 
 /**
@@ -38,6 +47,7 @@ class ExamResultViewModel(
     private val classId: String,
     private val exportColumnRepository: ExportColumnRepository,
     private val classRepository: SchoolClassRepository,
+    private val sessionRepository: SchoolSessionRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ExamResultUiState())
     val uiState: StateFlow<ExamResultUiState> = _uiState.asStateFlow()
@@ -48,12 +58,15 @@ class ExamResultViewModel(
                 combine(
                     examRepository.observeById(examId),
                     classRepository.observeById(classId),
-                ) { exam, schoolClass -> exam to schoolClass },
+                    sessionRepository.observeAll(),
+                ) { exam, schoolClass, sessions ->
+                    Triple(exam, schoolClass, sessions)
+                },
                 studentRepository.observeInClass(classId),
                 examRepository.observeSubjects(examId),
                 examRepository.observeMarks(examId),
                 exportColumnRepository.observeAll(),
-            ) { (exam, schoolClass), students, subjects, marks, storedColumns ->
+            ) { (exam, schoolClass, sessions), students, subjects, marks, storedColumns ->
                 val results = students.map { student ->
                     val studentMarks = marks.filter { it.studentId == student.id }
                     ResultCalculator.calculate(student, subjects, studentMarks)
@@ -65,6 +78,12 @@ class ExamResultViewModel(
                     results = results,
                     exportColumns = ExportColumnDefaults.effective(storedColumns),
                     loading = false,
+                    schoolName = schoolClass?.schoolName.orEmpty(),
+                    sessionLabel = sessions.firstOrNull { it.id == schoolClass?.sessionId }
+                        ?.label.orEmpty(),
+                    teacherName = schoolClass?.teacherName.orEmpty(),
+                    teacherDesignation = schoolClass?.teacherDesignation.orEmpty(),
+                    examDate = exam?.examDate,
                 )
             }.collect { _uiState.value = it }
         }
@@ -106,6 +125,38 @@ class ExamResultViewModel(
     fun deleteSubject(subject: ExamSubject) {
         viewModelScope.launch {
             examRepository.deleteSubject(subject)
+        }
+    }
+
+    /**
+     * Marks every student/subject pair that still has no mark as absent. The
+     * count is the same list [AbsentPlanner.blankPairs] shows in the
+     * confirmation, so the teacher never writes more rows than promised.
+     */
+    fun markRemainingAbsent() {
+        val state = _uiState.value
+        val blanks = AbsentPlanner.blankPairs(state.results, state.subjects)
+        if (blanks.isEmpty()) return
+        viewModelScope.launch {
+            examRepository.upsertMarks(
+                blanks.map { blank ->
+                    ExamMark(
+                        id = UUID.randomUUID().toString(),
+                        examId = examId,
+                        subjectId = blank.subjectId,
+                        studentId = blank.studentId,
+                        marksObtained = 0.0,
+                        isAbsent = true,
+                    )
+                },
+            )
+        }
+    }
+
+    /** Removes every absent row in the exam; entered marks stay untouched. */
+    fun clearAllAbsent() {
+        viewModelScope.launch {
+            examRepository.deleteAbsentMarks(examId)
         }
     }
 

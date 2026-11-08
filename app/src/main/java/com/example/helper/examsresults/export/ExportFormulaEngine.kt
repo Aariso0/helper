@@ -21,7 +21,11 @@ data class ExportColumnIssue(
  * pasted — its A1 references are the teacher's responsibility.
  */
 internal object ExportFormulaEngine {
-    const val PREVIEW_ROW = 2
+    /**
+     * The first data row of the results sheet: four banner rows plus two
+     * header rows sit above it. The editor previews formulas on this row.
+     */
+    const val PREVIEW_ROW = 7
     const val MAX_FORMULA_LENGTH = 500
 
     private val TOKEN = Regex("""\{([^{}]*)\}""")
@@ -29,6 +33,7 @@ internal object ExportFormulaEngine {
     private val CELL_REFERENCE = Regex("""(?<![A-Za-z0-9_])[$]?[A-Za-z]{1,3}[$]?[0-9]+""")
     private const val ALL_MARKS = "All Marks"
     private const val ALL_PASS_CHECKS = "All Pass Checks"
+    private const val TOTAL_MAX = "Total Max"
 
     private data class Layout(
         val subjects: List<ExamSubject>,
@@ -39,12 +44,21 @@ internal object ExportFormulaEngine {
         val columnIndexByCanonical: Map<String, Int>,
     )
 
+    /**
+     * [dataRows] is the absolute row range of the student rows on the results
+     * sheet. Rank needs it to build `RANK(cell, $F$7:$F$46)`; the editor
+     * previews on a single row when the real range is not known yet.
+     */
     fun resolve(
         column: ExportColumn,
         columns: List<ExportColumn>,
         subjects: List<ExamSubject>,
         rowNum: Int = PREVIEW_ROW,
+        dataRows: IntRange? = null,
     ): Result<String> {
+        if (column.kind == ExportColumnKind.RANK) {
+            return resolveRank(columns, subjects, rowNum, dataRows)
+        }
         val template = ExportColumnDefaults.templateFor(column).trim()
         if (template.isEmpty()) return Result.failure(FormulaError("Formula is empty."))
         if (template.startsWith("=")) return Result.success(template)
@@ -79,7 +93,15 @@ internal object ExportFormulaEngine {
                     val columnIndex = layout.subjectIndexByName[token]
                         ?: layout.columnIndexByLabel[token]
                         ?: layout.columnIndexByCanonical[token]
-                    columnIndex?.let { "${columnLetter(it)}$rowNum" }
+                    when {
+                        columnIndex != null -> "${columnLetter(columnIndex)}$rowNum"
+                        // Total Max is no longer a default column. A formula
+                        // that still asks for it gets the exam's literal sum of
+                        // subject maxima, so Percentage keeps working.
+                        token.equals(TOTAL_MAX, ignoreCase = true) && subjects.isNotEmpty() ->
+                            subjects.sumOf { it.maxMarks }.toString()
+                        else -> null
+                    }
                 }
             }
             if (replacement == null) {
@@ -95,6 +117,28 @@ internal object ExportFormulaEngine {
     }
 
     /**
+     * Rank is derived, not edited: it needs the Total Obtained cell and the
+     * absolute range of every student's total, which only the writer knows.
+     * Excel's `RANK` shares a rank on ties and skips the next (1, 2, 2, 4).
+     */
+    private fun resolveRank(
+        columns: List<ExportColumn>,
+        subjects: List<ExamSubject>,
+        rowNum: Int,
+        dataRows: IntRange?,
+    ): Result<String> {
+        val totalIndex = columns.indexOfFirst { it.kind == ExportColumnKind.TOTAL_OBTAINED }
+        if (totalIndex < 0) {
+            return Result.failure(FormulaError("Rank needs a Total Obtained column."))
+        }
+        val column = columnLetter(computedColumnStart(subjects) + totalIndex)
+        val firstRow = dataRows?.first ?: rowNum
+        val lastRow = dataRows?.last ?: rowNum
+        val cell = "$column$rowNum"
+        return Result.success("=IF($cell=\"\",\"\",RANK($cell,\$$column\$$firstRow:\$$column\$$lastRow))")
+    }
+
+    /**
      * The one blocking error for a single column, or `null` when the formula
      * can be written. Used by the editor (live, while typing) and by [validate].
      */
@@ -103,6 +147,13 @@ internal object ExportFormulaEngine {
         columns: List<ExportColumn>,
         subjects: List<ExamSubject>,
     ): String? {
+        if (column.kind == ExportColumnKind.RANK) {
+            return if (columns.none { it.kind == ExportColumnKind.TOTAL_OBTAINED }) {
+                "Rank needs a Total Obtained column."
+            } else {
+                null
+            }
+        }
         if (column.kind == ExportColumnKind.TOTAL_MAX || column.kind == ExportColumnKind.RESULT) {
             return null
         }
@@ -125,7 +176,10 @@ internal object ExportFormulaEngine {
         columns: List<ExportColumn>,
         subjects: List<ExamSubject>,
     ): String? {
-        if (column.kind == ExportColumnKind.TOTAL_MAX || column.kind == ExportColumnKind.RESULT) {
+        if (column.kind == ExportColumnKind.TOTAL_MAX ||
+            column.kind == ExportColumnKind.RESULT ||
+            column.kind == ExportColumnKind.RANK
+        ) {
             return null
         }
         val formula = ExportColumnDefaults.templateFor(column).trim()
@@ -167,10 +221,26 @@ internal object ExportFormulaEngine {
             }
         }
 
+        if (columns.any { it.kind == ExportColumnKind.RANK } &&
+            columns.none { it.kind == ExportColumnKind.TOTAL_OBTAINED }
+        ) {
+            columns.filter { it.kind == ExportColumnKind.RANK }.forEach { column ->
+                issues += ExportColumnIssue(
+                    column.id,
+                    displayLabel(column),
+                    "Rank needs a Total Obtained column.",
+                )
+            }
+        }
+
         columns.forEach { column ->
-            // Total Max is a fixed number and Result is generated from the
-            // subject pass marks, so neither stores an editable formula.
-            if (column.kind == ExportColumnKind.TOTAL_MAX || column.kind == ExportColumnKind.RESULT) {
+            // Total Max is a fixed number, Result is generated from the
+            // subject pass marks, and Rank reads Total Obtained, so none of
+            // them stores an editable formula.
+            if (column.kind == ExportColumnKind.TOTAL_MAX ||
+                column.kind == ExportColumnKind.RESULT ||
+                column.kind == ExportColumnKind.RANK
+            ) {
                 return@forEach
             }
             val formula = ExportColumnDefaults.templateFor(column).trim()
@@ -339,7 +409,10 @@ internal object ExportFormulaEngine {
         rowNum: Int,
     ): String = subjects.mapIndexed { index, subject ->
         val cell = "${columnLetter(firstMarkCol + index)}$rowNum"
-        "OR($cell=\"\",$cell>=${subject.passMarks})"
+        // A blank cell is "not entered" and ignored. `N()` turns the "ABT"
+        // text of an absent subject into 0, which fails the paper mark; a
+        // plain text comparison would treat "ABT" as greater than a number.
+        "OR(ISBLANK($cell),N($cell)>=${subject.passMarks})"
     }.joinToString(",")
 
     /**

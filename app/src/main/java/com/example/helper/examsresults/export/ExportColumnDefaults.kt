@@ -15,6 +15,7 @@ object ExportColumnDefaults {
     const val TOTAL_MAX_ID = "builtin-total-max"
     const val PERCENTAGE_ID = "builtin-percentage"
     const val RESULT_ID = "builtin-result"
+    const val RANK_ID = "builtin-rank"
 
     /**
      * Marker row written when the teacher deletes the last column. A truly
@@ -34,7 +35,8 @@ object ExportColumnDefaults {
     const val PERCENTAGE_TEMPLATE =
         "IF({Total Max}=0,0,{Total Obtained}/{Total Max})"
     const val RESULT_TEMPLATE =
-        "IF(COUNT({All Marks})=0,\"\",IF(AND({All Pass Checks}),\"Pass\",\"Fail\"))"
+        "IF(AND(COUNT({All Marks})=0,COUNTIF({All Marks},\"ABT\")=0),\"\"," +
+            "IF(AND({All Pass Checks}),\"Pass\",\"Fail\"))"
 
     fun columns(): List<ExportColumn> = listOf(
         ExportColumn(
@@ -45,23 +47,23 @@ object ExportColumnDefaults {
             sortOrder = 0,
         ),
         ExportColumn(
-            id = TOTAL_MAX_ID,
-            label = "Total Max",
-            kind = ExportColumnKind.TOTAL_MAX,
-            formula = "",
-            sortOrder = 1,
-        ),
-        ExportColumn(
             id = PERCENTAGE_ID,
             label = "Percentage",
             kind = ExportColumnKind.PERCENTAGE,
             formula = PERCENTAGE_TEMPLATE,
-            sortOrder = 2,
+            sortOrder = 1,
         ),
         ExportColumn(
             id = RESULT_ID,
             label = "Result",
             kind = ExportColumnKind.RESULT,
+            formula = "",
+            sortOrder = 2,
+        ),
+        ExportColumn(
+            id = RANK_ID,
+            label = "Rank",
+            kind = ExportColumnKind.RANK,
             formula = "",
             sortOrder = 3,
         ),
@@ -96,6 +98,7 @@ object ExportColumnDefaults {
         ExportColumnKind.TOTAL_OBTAINED -> column.formula.ifBlank { TOTAL_OBTAINED_TEMPLATE }
         ExportColumnKind.PERCENTAGE -> column.formula.ifBlank { PERCENTAGE_TEMPLATE }
         ExportColumnKind.RESULT -> RESULT_TEMPLATE
+        ExportColumnKind.RANK -> ""
         ExportColumnKind.TOTAL_MAX -> ""
         ExportColumnKind.CUSTOM -> column.formula
     }
@@ -106,6 +109,7 @@ object ExportColumnDefaults {
         ExportColumnKind.TOTAL_MAX -> "Total Max"
         ExportColumnKind.PERCENTAGE -> "Percentage"
         ExportColumnKind.RESULT -> "Result"
+        ExportColumnKind.RANK -> "Rank"
         ExportColumnKind.CUSTOM -> null
     }
 }

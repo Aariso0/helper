@@ -49,16 +49,20 @@ class ExportColumnsTest {
     )
 
     @Test
-    fun `defaults keep total, max, percentage and result after the subjects`() {
+    fun `defaults keep total, percentage, result and rank after the subjects`() {
         val all = workbookEntries(ExportColumnDefaults.columns())
         val text = all.values.joinToString("\n")
 
         assertTrue(text.contains("Total Obtained"))
-        assertTrue(text.contains("Total Max"))
         assertTrue(text.contains("Percentage"))
         assertTrue(text.contains("Result"))
-        assertTrue("total starts the computed block", text.contains("<f>SUM(D2:E2)</f>"))
-        assertTrue("total max is a value", text.contains("<v>150</v>"))
+        assertTrue(text.contains("Rank"))
+        assertFalse("Total Max is printed inside the total, not as a column", text.contains("Total Max"))
+        assertTrue("total starts the computed block", text.contains("<f>SUM(D7:E7)</f>"))
+        assertTrue(
+            "rank shares a place on ties",
+            text.contains("<f>IF(F7=\"\",\"\",RANK(F7,"),
+        )
     }
 
     @Test
@@ -81,8 +85,8 @@ class ExportColumnsTest {
         // The summary's per-subject analysis reads only names and marks, so it
         // is still worth writing; the verdict cells are the ones left blank.
         val summary = entries["xl/worksheets/sheet2.xml"].orEmpty()
-        assertTrue(summary.contains("<f>COUNTA('Results'!${'$'}C$2:${'$'}C$2)</f>"))
-        assertTrue(summary.contains("<f>MAX(C3:C4)</f>"))
+        assertTrue(summary.contains("<f>COUNTA('Results'!${'$'}C$7:${'$'}C$7)</f>"))
+        assertTrue(summary.contains("<f>MAX(C7:C8)</f>"))
         assertFalse(summary.contains(""","Pass")</f>"""))
     }
 
@@ -99,40 +103,50 @@ class ExportColumnsTest {
         val sheet = all["xl/worksheets/sheet1.xml"].orEmpty()
 
         assertTrue("custom header", all.values.joinToString("\n").contains("x"))
-        assertTrue("custom formula", sheet.contains("<f>D2+E2</f>"))
+        assertTrue("custom formula", sheet.contains("<f>D7+E7</f>"))
     }
 
     @Test
     fun `reordering moves the A1 references with the columns`() {
+        val defaults = ExportColumnDefaults.columns()
+        fun of(kind: ExportColumnKind) = defaults.first { it.kind == kind }
+        val totalMax = ExportColumn(
+            id = ExportColumnDefaults.TOTAL_MAX_ID,
+            label = "Total Max",
+            kind = ExportColumnKind.TOTAL_MAX,
+            formula = "",
+            sortOrder = 2,
+        )
         val reordered = listOf(
-            ExportColumnDefaults.columns()[2].copy(sortOrder = 0), // Percentage first
-            ExportColumnDefaults.columns()[0].copy(sortOrder = 1), // Total Obtained
-            ExportColumnDefaults.columns()[1].copy(sortOrder = 2), // Total Max
-            ExportColumnDefaults.columns()[3].copy(sortOrder = 3), // Result
+            of(ExportColumnKind.PERCENTAGE).copy(sortOrder = 0), // Percentage first
+            of(ExportColumnKind.TOTAL_OBTAINED).copy(sortOrder = 1),
+            totalMax,
+            of(ExportColumnKind.RESULT).copy(sortOrder = 3),
         )
         val sheet = sheet(reordered)
 
         // F Percentage, G Total Obtained, H Total Max, I Result.
         assertTrue(
-            "percentage now points at F and G",
-            sheet.contains("<f>IF(H2=0,0,G2/H2)</f>"),
+            "percentage now points at H and G",
+            sheet.contains("<f>IF(H7=0,0,G7/H7)</f>"),
         )
-        assertTrue("total moved to F", sheet.contains("<f>SUM(D2:E2)</f>"))
-        assertTrue("the colour rule follows the Result column", sheet.contains("""sqref="I2:I2""""))
+        assertTrue("total moved to G", sheet.contains("<f>SUM(D7:E7)</f>"))
+        assertTrue("the colour rule follows the Result column", sheet.contains("""sqref="I7:I7""""))
     }
 
     @Test
     fun `the colour rule follows the Result column when it moves`() {
         val columns = ExportColumnDefaults.columns()
+        fun of(kind: ExportColumnKind) = columns.first { it.kind == kind }
         val reordered = listOf(
-            columns[3].copy(sortOrder = 0), // Result first
-            columns[2].copy(sortOrder = 1),
-            columns[0].copy(sortOrder = 2),
-            columns[1].copy(sortOrder = 3),
+            of(ExportColumnKind.RESULT).copy(sortOrder = 0), // Result first
+            of(ExportColumnKind.RANK).copy(sortOrder = 1),
+            of(ExportColumnKind.TOTAL_OBTAINED).copy(sortOrder = 2),
+            of(ExportColumnKind.PERCENTAGE).copy(sortOrder = 3),
         )
         val sheet = sheet(reordered)
 
-        assertTrue("Result is now F", sheet.contains("""sqref="F2:F2""""))
+        assertTrue("Result is now F", sheet.contains("""sqref="F7:F7""""))
         assertTrue("and the pass rule is still there", sheet.contains("""<formula>"Fail"</formula>"""))
     }
 
@@ -156,8 +170,8 @@ class ExportColumnsTest {
         )
         val sheet = sheet(columns)
 
-        assertTrue("x lands in J", sheet.contains("<f>D2*2</f>"))
-        assertTrue("y references x's column", sheet.contains("<f>J2+1</f>"))
+        assertTrue("x lands in J", sheet.contains("<f>D7*2</f>"))
+        assertTrue("y references x's column", sheet.contains("<f>J7+1</f>"))
     }
 
     @Test
@@ -350,6 +364,19 @@ class ExportColumnsTest {
         assertTrue(issues.isEmpty())
         val notice = ExportFormulaEngine.notice(constant, ExportColumnDefaults.columns() + constant, subjects)
         assertTrue(notice.orEmpty().contains("same value"))
+    }
+
+    @Test
+    fun `rank needs a total obtained column`() {
+        val columns = ExportColumnDefaults.columns()
+            .filterNot { it.kind == ExportColumnKind.TOTAL_OBTAINED }
+        val issues = ExportFormulaEngine.validate(columns, subjects)
+
+        assertTrue(
+            issues.any {
+                it.columnLabel == "Rank" && it.message.contains("Total Obtained")
+            },
+        )
     }
 
     @Test

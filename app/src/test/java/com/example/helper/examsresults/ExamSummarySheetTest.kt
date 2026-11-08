@@ -63,8 +63,8 @@ class ExamSummarySheetTest {
 
     @Test
     fun `pass share and subject average are fractions with a zero guard`() {
-        assertEquals("IF(C3=0,0,D3/C3)", subject().passPercent)
-        assertEquals("IF(C3=0,0,SUM('Results'!${'$'}D$2:${'$'}D$11)/C3/40)", subject().average)
+        assertEquals("IF(C7=0,0,D7/C7)", subject().passPercent)
+        assertEquals("IF(C7=0,0,SUM('Results'!${'$'}D$2:${'$'}D$11)/C7/40)", subject().average)
     }
 
     @Test
@@ -79,7 +79,7 @@ class ExamSummarySheetTest {
             bands[0],
         )
         assertEquals(
-            """COUNTIF('Results'!${'$'}D$2:${'$'}D$11,">="&40*33/100)-I3-J3-K3-L3-M3""",
+            """COUNTIF('Results'!${'$'}D$2:${'$'}D$11,">="&40*33/100)-I7-J7-K7-L7-M7""",
             bands[1],
         )
         assertEquals(
@@ -93,15 +93,15 @@ class ExamSummarySheetTest {
         val bands = subject().bands
 
         assertEquals(
-            """COUNTIF('Results'!${'$'}D$2:${'$'}D$11,">="&40*50/100)-J3-K3-L3-M3""",
+            """COUNTIF('Results'!${'$'}D$2:${'$'}D$11,">="&40*50/100)-J7-K7-L7-M7""",
             bands[2],
         )
         assertEquals(
-            """COUNTIF('Results'!${'$'}D$2:${'$'}D$11,">="&40*75/100)-L3-M3""",
+            """COUNTIF('Results'!${'$'}D$2:${'$'}D$11,">="&40*75/100)-L7-M7""",
             bands[4],
         )
         assertEquals(
-            """COUNTIF('Results'!${'$'}D$2:${'$'}D$11,">="&40*90/100)-M3""",
+            """COUNTIF('Results'!${'$'}D$2:${'$'}D$11,">="&40*90/100)-M7""",
             bands[5],
         )
     }
@@ -110,10 +110,10 @@ class ExamSummarySheetTest {
     fun `the overall row takes appeared as the max and the verdicts from the result column`() {
         val all = overall()
 
-        assertEquals("MAX(C3:C4)", all.appeared)
+        assertEquals("MAX(C7:C8)", all.appeared)
         assertEquals("""COUNTIF('Results'!${'$'}I$2:${'$'}I$11,"Pass")""", all.passed)
-        assertEquals("IF(C5=0,0,D5/C5)", all.passPercent)
-        assertEquals("IF(C5=0,0,SUM('Results'!${'$'}H$2:${'$'}H$11)/C5)", all.average)
+        assertEquals("IF(C9=0,0,D9/C9)", all.passPercent)
+        assertEquals("IF(C9=0,0,SUM('Results'!${'$'}H$2:${'$'}H$11)/C9)", all.average)
     }
 
     @Test
@@ -122,7 +122,7 @@ class ExamSummarySheetTest {
 
         assertEquals("""COUNTIF('Results'!${'$'}H$2:${'$'}H$11,"<"&33%)""", bands[0])
         assertEquals(
-            """COUNTIF('Results'!${'$'}H$2:${'$'}H$11,">="&33%)-I5-J5-K5-L5-M5""",
+            """COUNTIF('Results'!${'$'}H$2:${'$'}H$11,">="&33%)-I9-J9-K9-L9-M9""",
             bands[1],
         )
         assertEquals(
@@ -135,7 +135,7 @@ class ExamSummarySheetTest {
     fun `the class-wise block is one four-cell block on the overall row`() {
         val all = overall()
 
-        assertEquals(listOf("C5", "D5", "E5", "F5"), all.classWise)
+        assertEquals(listOf("C9", "D9", "E9", "F9"), all.classWise)
         assertTrue("only the overall row fills it", rows()[0].classWise.isEmpty())
         assertTrue("only the overall row fills it", rows()[1].classWise.isEmpty())
     }
@@ -145,22 +145,22 @@ class ExamSummarySheetTest {
         val all = rows(resultColumn = null)
 
         assertEquals("""COUNTIF('Results'!${'$'}D$2:${'$'}D$11,">=14")""", all[0].passed)
-        assertEquals("IF(C3=0,0,D3/C3)", all[0].passPercent)
+        assertEquals("IF(C7=0,0,D7/C7)", all[0].passPercent)
         assertNull("overall passed needs the Result column", all.last().passed)
         assertNull("overall pass share needs the Result column", all.last().passPercent)
-        assertEquals("the marks bands still work", listOf("C5", null, null, "F5"), all.last().classWise)
+        assertEquals("the marks bands still work", listOf("C9", null, null, "F9"), all.last().classWise)
     }
 
     @Test
     fun `a missing percentage column blanks only the figures that read it`() {
         val all = rows(percentageColumn = null)
 
-        assertEquals("IF(C3=0,0,SUM('Results'!${'$'}D$2:${'$'}D$11)/C3/40)", all[0].average)
+        assertEquals("IF(C7=0,0,SUM('Results'!${'$'}D$2:${'$'}D$11)/C7/40)", all[0].average)
         assertEquals("""COUNTIF('Results'!${'$'}I$2:${'$'}I$11,"Pass")""", all.last().passed)
-        assertEquals("IF(C5=0,0,D5/C5)", all.last().passPercent)
+        assertEquals("IF(C9=0,0,D9/C9)", all.last().passPercent)
         assertNull("overall average needs the Percentage column", all.last().average)
         assertTrue("overall bands need the Percentage column", all.last().bands.all { it == null })
-        assertEquals(listOf("C5", "D5", "E5", null), all.last().classWise)
+        assertEquals(listOf("C9", "D9", "E9", null), all.last().classWise)
     }
 
     @Test

@@ -246,6 +246,7 @@ fun ExportColumnsScreen(
 private fun formulaSummary(column: ExportColumn): String = when (column.kind) {
     ExportColumnKind.TOTAL_MAX -> "Fixed number"
     ExportColumnKind.RESULT -> "Pass / Fail from the subject pass marks"
+    ExportColumnKind.RANK -> "Rank from Total Obtained (ties share a rank)"
     else -> column.formula.ifBlank { "(empty formula)" }
 }
 
@@ -263,7 +264,8 @@ private fun FormulaEditorDialog(
     var pasteMode by remember(initial.id) { mutableStateOf(initial.formula.trimStart().startsWith("=")) }
 
     val readOnlyFormula = initial.kind == ExportColumnKind.TOTAL_MAX ||
-        initial.kind == ExportColumnKind.RESULT
+        initial.kind == ExportColumnKind.RESULT ||
+        initial.kind == ExportColumnKind.RANK
 
     val previewColumn = initial.copy(label = label.trim().ifEmpty { initial.label }, formula = formula.text)
     val previewColumns = if (columns.any { it.id == previewColumn.id }) {

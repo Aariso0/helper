@@ -14,6 +14,7 @@ enum class ExportColumnKind {
     TOTAL_MAX,
     PERCENTAGE,
     RESULT,
+    RANK,
     CUSTOM,
 }
 

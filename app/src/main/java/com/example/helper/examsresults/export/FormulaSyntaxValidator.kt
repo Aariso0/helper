@@ -13,7 +13,8 @@ package com.example.helper.examsresults.export
 internal object FormulaSyntaxValidator {
     private val FUNCTIONS = setOf(
         "SUM", "AVERAGE", "MIN", "MAX", "ROUND", "IF",
-        "AND", "OR", "NOT", "COUNT", "COUNTA", "ABS",
+        "AND", "OR", "NOT", "COUNT", "COUNTA", "COUNTIF", "ABS",
+        "ISBLANK", "N", "RANK",
     )
 
     private const val MAX_DEPTH = 50

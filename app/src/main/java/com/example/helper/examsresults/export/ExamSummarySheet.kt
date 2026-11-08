@@ -50,11 +50,14 @@ internal object ExamSummarySheet {
 
     const val SHEET_NAME = "Summary"
 
-    /** 1-based row of the column headers; the title sits in row 1. */
-    const val HEADER_ROW = 2
+    /** 1-based row of the cream `RESULT- ANALYSIS` title block. */
+    const val TITLE_ROW = 5
+
+    /** 1-based row of the column headers; the title sits in row 5. */
+    const val HEADER_ROW = 6
 
     /** 1-based row of the first subject; the overall row follows the last. */
-    const val FIRST_DATA_ROW = 3
+    const val FIRST_DATA_ROW = 7
 
     const val SUBJECT_HEADER = "Subjects."
     const val OVERALL_LABEL = "OVER ALL CLASS"
@@ -94,15 +97,7 @@ internal object ExamSummarySheet {
 
     /** Score bands, low to high. The first has no upper boundary of its own. */
     val BAND_FLOORS = listOf(33, 50, 60, 75, 90, 95)
-    val BAND_LABELS = listOf(
-        "Below 33%",
-        "33-49%",
-        "50-59%",
-        "60-74%",
-        "75-89%",
-        "90-94%",
-        "95% & Above",
-    )
+    val BAND_LABELS = ExamSheetStats.SEVEN_BAND_LABELS
 
     /** The four cells of the single class-wise block, in column order N..Q. */
     val CLASS_WISE_HEADERS = listOf(

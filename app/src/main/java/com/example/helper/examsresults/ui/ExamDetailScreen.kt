@@ -47,6 +47,7 @@ import com.example.helper.coredata.entity.ExamSubject
 import com.example.helper.examsresults.export.ExamExcelWriter
 import com.example.helper.examsresults.export.ExamPdfWriter
 import com.example.helper.examsresults.export.ExportFormulaEngine
+import com.example.helper.examsresults.util.AbsentPlanner
 import com.example.helper.examsresults.viewmodel.ExamResultViewModel
 import com.example.helper.share.asShareableUri
 import com.example.helper.share.shareFiles
@@ -71,9 +72,14 @@ fun ExamDetailScreen(
     var showAddSubject by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     var showDeleteExam by remember { mutableStateOf(false) }
+    var showMarkRemaining by remember { mutableStateOf(false) }
+    var showClearAbsent by remember { mutableStateOf(false) }
     var exportError by remember { mutableStateOf<String?>(null) }
     var subjectBeingDeleted by remember { mutableStateOf<ExamSubject?>(null) }
     var subjectBeingEdited by remember { mutableStateOf<ExamSubject?>(null) }
+
+    val blankPairs = AbsentPlanner.blankPairs(state.results, state.subjects)
+    val absentCount = state.results.sumOf { it.absentSubjectIds.size }
 
     // A passed row stays plain and a failed row is bold italic — the sheet's
     // conditional rule carries that, so there is no colour question before an
@@ -95,6 +101,10 @@ fun ExamDetailScreen(
                             results = state.results,
                             columns = activeColumns,
                             className = state.className,
+                            schoolName = state.schoolName,
+                            sessionLabel = state.sessionLabel,
+                            teacherName = state.teacherName,
+                            teacherDesignation = state.teacherDesignation,
                         )
                     }
                 }.onSuccess { file ->
@@ -126,6 +136,11 @@ fun ExamDetailScreen(
                         results = state.results,
                         columns = state.exportColumns,
                         className = state.className,
+                        schoolName = state.schoolName,
+                        sessionLabel = state.sessionLabel,
+                        teacherName = state.teacherName,
+                        teacherDesignation = state.teacherDesignation,
+                        examDate = state.examDate,
                     )
                 }
             }.onSuccess { file ->
@@ -167,6 +182,22 @@ fun ExamDetailScreen(
                             onClick = {
                                 menuOpen = false
                                 onConfigureColumns()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Mark remaining as absent (${blankPairs.size})") },
+                            enabled = blankPairs.isNotEmpty(),
+                            onClick = {
+                                menuOpen = false
+                                showMarkRemaining = true
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Clear all absent ($absentCount)") },
+                            enabled = absentCount > 0,
+                            onClick = {
+                                menuOpen = false
+                                showClearAbsent = true
                             },
                         )
                         DropdownMenuItem(
@@ -284,9 +315,11 @@ fun ExamDetailScreen(
             HorizontalDivider()
 
             state.results.forEach { result ->
+                val absentNames = result.absentSubjectIds
+                    .map { id -> state.subjects.firstOrNull { it.id == id }?.name ?: id }
                 val failedNames = result.failedSubjects
-                    .mapNotNull { id -> state.subjects.firstOrNull { it.id == id }?.name }
-                    .ifEmpty { result.failedSubjects }
+                    .filterNot { it in result.absentSubjectIds }
+                    .map { id -> state.subjects.firstOrNull { it.id == id }?.name ?: id }
                 val hasFailures = result.failedSubjects.isNotEmpty()
                 // A missing mark is "not entered yet", not a fail. Among the
                 // entered marks, any failure means FAIL; otherwise PASS even if
@@ -323,9 +356,16 @@ fun ExamDetailScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = statusColor,
                         )
-                        if (hasFailures) {
+                        if (failedNames.isNotEmpty()) {
                             Text(
                                 "Failed in: ${failedNames.joinToString(", ")}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        if (absentNames.isNotEmpty()) {
+                            Text(
+                                "ABT in: ${absentNames.joinToString(", ")}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
@@ -412,6 +452,55 @@ fun ExamDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteExam = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (showMarkRemaining) {
+        AlertDialog(
+            onDismissRequest = { showMarkRemaining = false },
+            title = { Text("Mark remaining as absent?") },
+            text = {
+                Text(
+                    "${blankPairs.size} blank ${if (blankPairs.size == 1) "mark" else "marks"} " +
+                        "across all students and subjects will be marked absent. " +
+                        "Marks already entered stay as they are.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showMarkRemaining = false
+                        viewModel.markRemainingAbsent()
+                    }
+                ) { Text("Mark ${blankPairs.size} absent") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMarkRemaining = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (showClearAbsent) {
+        AlertDialog(
+            onDismissRequest = { showClearAbsent = false },
+            title = { Text("Clear all absent marks?") },
+            text = {
+                Text(
+                    "$absentCount absent ${if (absentCount == 1) "mark" else "marks"} in this exam " +
+                        "will be removed. Entered marks stay as they are.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearAbsent = false
+                        viewModel.clearAllAbsent()
+                    }
+                ) { Text("Clear absent", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearAbsent = false }) { Text("Cancel") }
             },
         )
     }
