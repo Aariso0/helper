@@ -144,11 +144,20 @@ object ExamExcelWriter {
 
         subjects.forEachIndexed { index, _ ->
             setStyle(sheet, columnIndex = 3 + index, rowIndex = HEADER_ROW - 1) {
-                it.copyWith(backgroundColorHexVal = ExcelColor.fromHexString(ExportPalette.SUBJECT_CYAN))
+                it.copyWith(
+                    backgroundColorHexVal = ExcelColor.fromHexString(ExportPalette.SUBJECT_CYAN),
+                    horizontalAlignVal = HorizontalAlign.Center,
+                )
             }
             setStyle(sheet, columnIndex = 3 + index, rowIndex = MAX_MARKS_ROW - 1) {
-                it.copyWith(backgroundColorHexVal = ExcelColor.fromHexString(ExportPalette.HEADER_YELLOW))
+                it.copyWith(
+                    backgroundColorHexVal = ExcelColor.fromHexString(ExportPalette.HEADER_YELLOW),
+                    horizontalAlignVal = HorizontalAlign.Center,
+                )
             }
+        }
+        setStyle(sheet, columnIndex = 2, rowIndex = HEADER_ROW - 1) {
+            it.copyWith(boldVal = true, horizontalAlignVal = HorizontalAlign.Center)
         }
         setStyle(sheet, columnIndex = 2, rowIndex = MAX_MARKS_ROW - 1) {
             it.copyWith(boldVal = true, horizontalAlignVal = HorizontalAlign.Center)
@@ -517,6 +526,15 @@ object ExamExcelWriter {
         ExamSummarySheet.METRIC_HEADERS.forEach { header.add(TextCellValue(it)) }
         ExamSummarySheet.CLASS_WISE_HEADERS.forEach { header.add(TextCellValue(it)) }
         sheet.appendRow(header)
+        header.indices.forEach { columnIndex ->
+            setStyle(sheet, columnIndex, ExamSummarySheet.HEADER_ROW - 1) {
+                it.copyWith(
+                    boldVal = true,
+                    horizontalAlignVal = HorizontalAlign.Center,
+                    verticalAlignVal = VerticalAlign.Center,
+                )
+            }
+        }
 
         rows.forEach { row ->
             val cells = mutableListOf<CellValue?>()
@@ -649,6 +667,15 @@ object ExamExcelWriter {
         header.add(TextCellValue("Designation"))
         header.add(TextCellValue("Employee Type"))
         sheet.appendRow(header)
+        header.indices.forEach { columnIndex ->
+            setStyle(sheet, columnIndex, ExamSubjectTeacherSheet.HEADER_ROW - 1) {
+                it.copyWith(
+                    boldVal = true,
+                    horizontalAlignVal = HorizontalAlign.Center,
+                    verticalAlignVal = VerticalAlign.Center,
+                )
+            }
+        }
 
         rows.forEach { row ->
             val cells = mutableListOf<CellValue?>()
@@ -707,6 +734,11 @@ object ExamExcelWriter {
             classHeader[index] = TextCellValue(text)
         }
         sheet.appendRow(classHeader)
+        classHeader.indices.forEach { columnIndex ->
+            setStyle(sheet, columnIndex, classHeaderRow - 1) {
+                it.copyWith(boldVal = true, horizontalAlignVal = HorizontalAlign.Center)
+            }
+        }
         fillRow(
             sheet = sheet,
             rowIndex = classHeaderRow - 1,

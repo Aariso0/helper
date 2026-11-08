@@ -321,11 +321,13 @@ object ExamPdfWriter {
         val middle = listOf(monthLabel(banner.examDate), banner.sessionLabel.trim())
             .filter { it.isNotEmpty() }
             .joinToString(" ")
+        // The month + session block is centred on the page, not between the
+        // exam name and the class, as the paper sheet has it.
         drawCentered(
             canvas,
             middle,
-            examRight,
-            sessionRight,
+            left + CELL_PADDING,
+            right - CELL_PADDING,
             row1Bottom,
             row2Bottom,
             rowPaint,
