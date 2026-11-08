@@ -4,7 +4,7 @@ import com.example.helper.coredata.entity.ExamSubject
 
 /**
  * One line of the page-3 subject-teacher sheet: the labels and live Excel
- * formulas for the subject columns, plus the three static teacher fields.
+ * formulas for the subject columns, plus the four static teacher fields.
  * A `null` formula means the current layout cannot compute that figure.
  */
 internal data class SubjectTeacherRow(
@@ -23,10 +23,6 @@ internal data class SubjectTeacherRow(
     val teacherDesignation: String = "",
     val employeeType: String = "",
 ) {
-    /** `SMT. BHAVANA SONI`: the title is printed with the name, as page 3 does. */
-    val teacherDisplayName: String
-        get() = listOf(teacherTitle, teacherName).filter { it.isNotEmpty() }.joinToString(" ")
-
     fun metricCells(): List<String?> =
         listOf(strength, appeared, absent, passed, failed, total, passPercent, average) + bands
 }
@@ -60,9 +56,10 @@ internal object ExamSubjectTeacherSheet {
     const val PASS_PERCENT_COLUMN = 8
     const val AVERAGE_COLUMN = 9
 
-    /** 1-based column of the teacher name, designation and employee type (O..Q). */
-    const val TEACHER_COLUMN = 15
-    const val LAST_COLUMN = 17
+    /** 1-based column of the title, name, designation and employee type (O..R). */
+    const val TITLE_COLUMN = 15
+    const val TEACHER_COLUMN = 16
+    const val LAST_COLUMN = 18
 
     /** 1-based column of the below-table class-wise block (A..E). */
     const val CLASS_WISE_COLUMN = 1

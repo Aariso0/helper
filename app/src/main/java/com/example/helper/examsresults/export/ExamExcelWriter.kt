@@ -644,6 +644,7 @@ object ExamExcelWriter {
         header.add(TextCellValue(ExamSubjectTeacherSheet.SUBJECT_HEADER))
         ExamSubjectTeacherSheet.METRIC_HEADERS.forEach { header.add(TextCellValue(it)) }
         ExamSubjectTeacherSheet.BAND_LABELS.forEach { header.add(TextCellValue(it)) }
+        header.add(TextCellValue("Title"))
         header.add(TextCellValue("Name of Subject Teacher"))
         header.add(TextCellValue("Designation"))
         header.add(TextCellValue("Employee Type"))
@@ -655,7 +656,8 @@ object ExamExcelWriter {
             row.metricCells().forEach { formula ->
                 cells.add(formula?.let { FormulaCellValue(it) })
             }
-            cells.add(TextCellValue(row.teacherDisplayName))
+            cells.add(TextCellValue(row.teacherTitle))
+            cells.add(TextCellValue(row.teacherName))
             cells.add(TextCellValue(row.teacherDesignation))
             cells.add(TextCellValue(row.employeeType))
             sheet.appendRow(cells)
@@ -735,9 +737,10 @@ object ExamExcelWriter {
         sheet.setColumnWidth(7, 9.0)
         sheet.setColumnWidth(8, 10.0)
         for (columnIndex in ExamSubjectTeacherSheet.FIRST_BAND_COLUMN - 1 until
-            ExamSubjectTeacherSheet.TEACHER_COLUMN - 1) {
+            ExamSubjectTeacherSheet.TITLE_COLUMN - 1) {
             sheet.setColumnWidth(columnIndex, 9.0)
         }
+        sheet.setColumnWidth(ExamSubjectTeacherSheet.TITLE_COLUMN - 1, 8.0)
         sheet.setColumnWidth(ExamSubjectTeacherSheet.TEACHER_COLUMN - 1, 22.0)
         sheet.setColumnWidth(ExamSubjectTeacherSheet.TEACHER_COLUMN, 16.0)
         sheet.setColumnWidth(ExamSubjectTeacherSheet.TEACHER_COLUMN + 1, 13.0)

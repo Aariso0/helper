@@ -110,12 +110,10 @@ class ExamSubjectTeacherSheetTest {
 
         assertEquals("SMT.", hindi.teacherTitle)
         assertEquals("Asha Verma", hindi.teacherName)
-        assertEquals("SMT. Asha Verma", hindi.teacherDisplayName)
         assertEquals("TGT-Hindi", hindi.teacherDesignation)
         assertEquals("Regular", hindi.employeeType)
         assertEquals("", math.teacherTitle)
         assertEquals("", math.teacherName)
-        assertEquals("", math.teacherDisplayName)
         assertEquals("", math.teacherDesignation)
         assertEquals("", math.employeeType)
     }

@@ -472,6 +472,7 @@ object ExamPdfWriter {
         val headers = mutableListOf(ExamSubjectTeacherSheet.SUBJECT_HEADER)
         headers.addAll(ExamSubjectTeacherSheet.METRIC_HEADERS)
         headers.addAll(ExamSubjectTeacherSheet.BAND_LABELS)
+        headers.add(HEADER_TITLE)
         headers.add(HEADER_TEACHER_NAME)
         headers.add(HEADER_DESIGNATION)
         headers.add(HEADER_EMPLOYEE_TYPE)
@@ -555,17 +556,16 @@ object ExamPdfWriter {
             percentLabel(averageShare),
         )
         bands.forEach { cells.add(it.toString()) }
-        repeat(3) { index -> cells.add(teacher.getOrElse(index) { "" }) }
+        repeat(4) { index -> cells.add(teacher.getOrElse(index) { "" }) }
         return cells
     }
 
-    /** The three teacher fields for a subject, in O..Q order. */
+    /** The four teacher fields for a subject, in O..R order. */
     private fun subjectTeacherFields(subject: ExamSubject?): List<String> {
         if (subject == null) return emptyList()
         return listOf(
-            listOf(subject.title.orEmpty().trim(), subject.teacherName.orEmpty().trim())
-                .filter { it.isNotEmpty() }
-                .joinToString(" "),
+            subject.title.orEmpty().trim(),
+            subject.teacherName.orEmpty().trim(),
             subject.teacherDesignation.orEmpty().trim(),
             subject.employeeType.orEmpty().trim(),
         )
@@ -650,7 +650,7 @@ object ExamPdfWriter {
             when {
                 index == 1 -> HEADER_YELLOW
                 index in ExamSubjectTeacherSheet.FIRST_BAND_COLUMN - 1 until
-                    ExamSubjectTeacherSheet.TEACHER_COLUMN - 1 ->
+                    ExamSubjectTeacherSheet.TITLE_COLUMN - 1 ->
                     FIVE_BAND_FILLS[index - (ExamSubjectTeacherSheet.FIRST_BAND_COLUMN - 1)]
                 else -> null
             }
@@ -759,12 +759,12 @@ object ExamPdfWriter {
         }
     }
 
-    /** A subjects, B..I metrics, J..N bands, O..Q the three teacher fields. */
+    /** A subjects, B..I metrics, J..N bands, O..R the four teacher fields. */
     private fun subjectTeacherColumnWidths(): FloatArray {
         val widths = mutableListOf(96f)
         repeat(8) { widths.add(40f) }
         repeat(5) { widths.add(38f) }
-        widths.addAll(listOf(86f, 62f, 52f))
+        widths.addAll(listOf(46f, 86f, 62f, 52f))
         val usable = LANDSCAPE_WIDTH - 2 * MARGIN
         val scale = usable / widths.sum()
         return FloatArray(widths.size) { index -> widths[index] * scale }
@@ -1059,6 +1059,7 @@ object ExamPdfWriter {
         }
     }
 
+    private const val HEADER_TITLE = "Title"
     private const val HEADER_TEACHER_NAME = "Name of Subject Teacher"
     private const val HEADER_DESIGNATION = "Designation"
     private const val HEADER_EMPLOYEE_TYPE = "Employee Type"

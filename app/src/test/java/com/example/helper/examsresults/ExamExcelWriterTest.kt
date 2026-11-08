@@ -376,16 +376,18 @@ class ExamExcelWriterTest {
         val sheet = all["xl/worksheets/sheet3.xml"].orEmpty()
         val shared = all["xl/sharedStrings.xml"].orEmpty()
 
-        assertTrue("the banner repeats", sheet.contains("""ref="A1:Q1""""))
+        assertTrue("the banner repeats", sheet.contains("""ref="A1:R1""""))
         assertTrue("the cream title is shared", shared.contains("RESULT- ANALYSIS"))
         assertTrue("all eight metrics", shared.contains("TOTAL Strength") && shared.contains("Subject Average"))
         assertTrue("the five page-three bands", shared.contains("33-&lt;60%") && shared.contains("90% &amp; Above"))
         assertTrue(
             "the teacher columns",
-            shared.contains("Name of Subject Teacher") && shared.contains("Designation") &&
-                shared.contains("Employee Type"),
+            shared.contains("Title") && shared.contains("Name of Subject Teacher") &&
+                shared.contains("Designation") && shared.contains("Employee Type"),
         )
-        assertTrue("the title is printed with the teacher", shared.contains("SMT. Asha Verma"))
+        assertTrue("the title has its own cell", shared.contains("SMT."))
+        assertTrue("the name is not joined with the title", shared.contains("Asha Verma"))
+        assertFalse("title and name share a cell", shared.contains("SMT. Asha Verma"))
         assertTrue("designation", shared.contains("TGT-Science"))
         assertTrue("employee type", shared.contains("Contract"))
 
@@ -398,7 +400,7 @@ class ExamExcelWriterTest {
             "the class-wise block points at the overall row",
             sheet.contains("<f>B9</f>") && sheet.contains("<f>I9</f>"),
         )
-        assertTrue("the block is below the table", sheet.contains("""<dimension ref="A1:Q12" />"""))
+        assertTrue("the block is below the table", sheet.contains("""<dimension ref="A1:R12" />"""))
     }
 
     private val RESULT_FORMULA =
