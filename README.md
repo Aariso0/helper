@@ -11,14 +11,12 @@
 
 <p align="center">
   <a href="https://github.com/Aariso0/helper/issues">Report Bug</a> ·
-  <a href="https://github.com/Aariso0/helper/issues">Request Feature</a>
+  <a href="https://github.com/Aariso0/helper/issues">Request Feature</a> ·
+  <a href="https://github.com/Aariso0/helper/releases/latest">Download APK</a>
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/language-Kotlin-7F52FF.svg" alt="Language: Kotlin">
-  <img src="https://img.shields.io/badge/platform-Android-3DDC84.svg" alt="Platform: Android">
-  <img src="https://img.shields.io/github/stars/Aariso0/helper.svg" alt="Stars">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a> <img src="https://img.shields.io/badge/language-Kotlin-7F52FF.svg" alt="Language: Kotlin"> <img src="https://img.shields.io/badge/platform-Android-3DDC84.svg" alt="Platform: Android"> <img src="https://img.shields.io/github/last-commit/Aariso0/helper.svg" alt="Last commit"> <img src="https://img.shields.io/github/stars/Aariso0/helper.svg" alt="Stars">
 </p>
 
 ## Table of Contents
@@ -39,7 +37,7 @@
 
 This is an Android app for a single teacher who wants daily classroom tasks done in fewer taps than an Excel sheet. It covers attendance, student feedback, homework, parent information, roster, exam results, reports and backup, all stored locally on the device.
 
-Version 1.3.0 is a local prototype: no login, no sync and no `INTERNET` permission in the manifest. It works fully offline.
+A local prototype: no login, no sync and no `INTERNET` permission in the manifest. It works fully offline. The source is version 1.3.0; the latest published APK is v1.3.1.
 
 > **TODO: add screenshot** — no screenshots or demo GIFs exist in the repo yet. A placeholder directory is reserved at `docs/screenshots/`.
 
@@ -56,7 +54,6 @@ Version 1.3.0 is a local prototype: no login, no sync and no `INTERNET` permissi
 - **Excel export** — Results sheet with live formulas, plus Summary and Subject Teacher sheets; export columns are configurable.
 - **3-page result PDF** — portrait marks statement (identity columns repeated, continuation pages for long classes), landscape class summary and landscape subject-teacher details.
 - **Reports & backup** — monthly CSV/XLSX/PDF reports and a zip backup/restore with manifest validation.
-- **Offline** — Room database on device; no network permission, no cloud dependency.
 
 [↑ Back to top](#top)
 
@@ -77,13 +74,14 @@ Version 1.3.0 is a local prototype: no login, no sync and no `INTERNET` permissi
 
 ## Getting Started
 
-### Prerequisites
+### Install a release APK (recommended)
 
-- JDK 17 (CI uses Temurin 17)
-- Android SDK platform API 37
-- Android Studio (optional — the Gradle wrapper is enough)
+Download [`helper-v1.3.1.apk`](https://github.com/Aariso0/helper/releases/download/v1.3.1/helper-v1.3.1.apk) from the [latest release](https://github.com/Aariso0/helper/releases/latest) and open the file on an Android device to install it. No JDK, SDK or compilation needed.
 
-### Installation
+<details>
+<summary>Build from source instead</summary>
+
+Prerequisites: JDK 17 (CI uses Temurin 17), Android SDK platform API 37, and Android Studio (optional — the Gradle wrapper is enough).
 
 1. Clone the repository:
 
@@ -105,6 +103,8 @@ Version 1.3.0 is a local prototype: no login, no sync and no `INTERNET` permissi
    ```
 
 Release builds need signing — see [Configuration](#configuration).
+
+</details>
 
 [↑ Back to top](#top)
 
