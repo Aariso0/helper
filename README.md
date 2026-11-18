@@ -76,7 +76,7 @@ A local prototype: no login, no sync and no `INTERNET` permission in the manifes
 
 ### Install a release APK (recommended)
 
-Download [`helper-v1.3.1.apk`](https://github.com/Aariso0/helper/releases/download/v1.3.2/helper-v1.3.2.apk) from the [latest release](https://github.com/Aariso0/helper/releases/latest) and open the file on an Android device to install it. No JDK, SDK or compilation needed.
+Download [`helper-v1.3.2.apk`](https://github.com/Aariso0/helper/releases/download/v1.3.2/helper-v1.3.2.apk) from the [latest release](https://github.com/Aariso0/helper/releases/latest) and open the file on an Android device to install it. No JDK, SDK or compilation needed.
 
 <details>
 <summary>Build from source instead</summary>
