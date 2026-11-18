@@ -1,223 +1,198 @@
+<a id="top"></a>
 <p align="center">
-  <img src="logo.png" alt="Teacher Classroom App logo" width="128" height="128">
+  <img src="logo.png" alt="Teacher Classroom App logo" width="120" height="120">
 </p>
 
-# Teacher Classroom App (Android)
+<h1 align="center">Teacher Classroom App (Android)</h1>
 
-> **Status:** Build phase complete — 10 of 11 modules built. Local, on-device prototype.  
-> **Version:** 1.3.0  
-> **Last updated:** 2026-11-08  
-> **Focus:** Fast, efficient, one-handed UI that beats Excel for daily classroom tasks.  
-> **Server / cloud:** Not built (v3 placeholder only). Fully offline. Future server integration is planned in [modules/server-comms.md](modules/server-comms.md) as a self-hostable option for school/local servers (no reliance on third-party cloud providers).
+<p align="center">
+  A local, on-device app for one teacher — attendance, homework, feedback and exam results, faster than an Excel sheet.
+</p>
 
----
+<p align="center">
+  <a href="https://github.com/Aariso0/helper/issues">Report Bug</a> ·
+  <a href="https://github.com/Aariso0/helper/issues">Request Feature</a>
+</p>
 
-## 1. Project Summary
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/language-Kotlin-7F52FF.svg" alt="Language: Kotlin">
+  <img src="https://img.shields.io/badge/platform-Android-3DDC84.svg" alt="Platform: Android">
+  <img src="https://img.shields.io/github/stars/Aariso0/helper.svg" alt="Stars">
+</p>
 
-A local, on-device Android app for a single teacher with the following features:
+## Table of Contents
 
-| Feature | Status | Description |
-| --- | --- | --- |
-| **Attendance** | Built | Tap-absentees marking with counters, past-date editing, undo support |
-| **Student Feedback** | Built | Quick notes with editable preset tags, per-student timeline |
-| **Homework** | Built | Create assignments with text/images/files, share via Android share sheet |
-| **Parents** | Built | Announcements with templates, parent contact log (manual logging only) |
-| **Roster & Students** | Built | Classes/students, student profiles, Excel/CSV import from a chosen sheet and row range, photo support |
-| **Export & Backup** | Built | Monthly reports (CSV/XLSX/PDF), full zip backup/restore with manifest preview |
-| **Exams & Results** | Built | Exam creation or import from Excel, fast mark entry with absent (ABT) marks, sessions, totals/%, pass-fail, rank, Excel export with live formulas + Summary and Subject Teacher sheets, 3-page PDF |
-| **Animations** | Built | Spring-based motion system with shared elements and predictive back |
-| **App Shell & Navigation** | Built | Today home screen, bottom nav, theme, share helpers |
+- [About](#about)
+- [Features](#features)
+- [Built With](#built-with)
+- [Getting Started](#getting-started)
+- [Usage](#usage)
+- [Project Structure](#project-structure)
+- [Configuration](#configuration)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
-All data is stored locally using Room. No login, no sync, no network permissions.
+## About
 
----
+This is an Android app for a single teacher who wants daily classroom tasks done in fewer taps than an Excel sheet. It covers attendance, student feedback, homework, parent information, roster, exam results, reports and backup, all stored locally on the device.
 
-## 2. Core Principles
+Version 1.3.0 is a local prototype: no login, no sync and no `INTERNET` permission in the manifest. It works fully offline.
 
-Every decision is judged by one question: **Does this save the teacher time or taps in daily use?**
+> **TODO: add screenshot** — no screenshots or demo GIFs exist in the repo yet. A placeholder directory is reserved at `docs/screenshots/`.
 
-- **Fewest taps** — Attendance is optimized for speed (tap only absentees, smart defaults)
-- **Smart defaults** — Today's date preselected, everyone marked present by default
-- **Home = Today** — App opens to what needs attention now
-- **One-handed, phone-first** — Big tap targets, bottom-placed primary actions
-- **Never lose work** — Autosave, undo support
-- **Offline-first** — Works with no internet connection
-- **Quick entry** — Presets, templates, recent items
-- **At-a-glance info** — Counts and status visible without drilling in
-- **Easy import** — Excel/CSV import for existing student lists
-- **Stay in control** — Export to CSV/XLSX/PDF anytime
+[↑ Back to top](#top)
 
----
+## Features
 
-## 3. Tech Stack
+- **Attendance** — tap only absentees; long-press for Late/Excused; edit past dates; live counters and undo.
+- **Student feedback** — quick notes with editable preset tags and a per-student timeline.
+- **Homework** — assignments with image/file attachments, due dates and Android share-sheet sharing.
+- **Parents** — announcement templates and a manual parent contact log.
+- **Roster** — classes and student profiles with photos; Excel/CSV import with sheet and row-range selection; academic sessions.
+- **Exams & results** — create or import an exam, enter marks one subject at a time, mark absentees `ABT`, and get totals, percentages, pass/fail and rank.
+- **Excel export** — Results sheet with live formulas, plus Summary and Subject Teacher sheets; export columns are configurable.
+- **3-page result PDF** — portrait marks statement (identity columns repeated, continuation pages for long classes), landscape class summary and landscape subject-teacher details.
+- **Reports & backup** — monthly CSV/XLSX/PDF reports and a zip backup/restore with manifest validation.
+- **Offline** — Room database on device; no network permission, no cloud dependency.
+
+[↑ Back to top](#top)
+
+## Built With
 
 | Component | Technology | Version |
 | --- | --- | --- |
-| **Language** | Kotlin | 2.3.21 |
-| **UI** | Jetpack Compose + Material 3 | BOM 2026.09.00 |
-| **Architecture** | MVVM + Room + Coroutines | Room 2.8.5 |
-| **Navigation** | Navigation Compose | 2.10.2 |
-| **Min/Target SDK** | Android 7.0+ / Android 15 | minSdk 24, targetSdk 37 |
-| **Build Tools** | AGP 9.4.1, Gradle 9.6.0 | - |
-| **Other** | KSP, Coil, Apache Commons CSV, kexcel-android | See `gradle/libs.versions.toml` |
+| Language | Kotlin | 2.3.21 |
+| UI | Jetpack Compose, Material 3 | BOM 2026.09.00 |
+| Architecture | MVVM + Room + Coroutines | Room 2.8.5, Coroutines 1.11.0 |
+| Navigation | Navigation Compose | 2.10.2 |
+| Build | Android Gradle Plugin, Gradle | 9.5.0, 9.6.0 |
+| Import & images | Apache Commons CSV, kexcel-android, Coil | 1.14.1, 0.1.2, 3.6.3 |
+| PDF | Android platform `PdfDocument` + `Canvas` | part of the Android SDK |
+| Min / target SDK | Android 7.0 / API 37 | `minSdk 24`, `targetSdk 37` |
 
----
+[↑ Back to top](#top)
 
-## 4. Key Features
-
-### Attendance
-- Tap only absentees (students default to Present)
-- Long-press for Late/Excused
-- Edit past dates easily
-- Live counters on screen
-- Undo last action via snackbar
-
-### Student Management
-- Class and student organization
-- Academic sessions (`2025-26`, `2026-27`, …): every class belongs to one session; the session menu on Today, Students, Homework and Parents switches the data shown, and the running session is marked `(curr.)`
-- School name, class teacher and designation per class, printed on every result sheet
-- Excel/CSV import with preview — pick the sheet and a row range (e.g. rows 5–25, or row 5 to the last filled row)
-- Student profile pages with photo support
-- Full attendance/history timeline
-- Exam history integrated into student page
-
-### Homework
-- Create assignments per class
-- Attach images/files via SAF or camera
-- Share via Android share sheet
-- Track due dates
-
-### Exams & Results
-- Create exams with multiple subjects and per-subject max/pass marks
-- Import an existing exam straight from an Excel sheet: pick the sheet and rows, and the app detects the name/roll columns, the subject columns and header marks like `Math (100)` or `Science (50/18)` — with a matched-student preview before anything is saved
-- Fast one-subject-at-a-time mark entry with numeric keyboard; mark a student **ABT** (absent) per subject, or bulk "mark remaining as absent" / "clear all absent" from the exam screen
-- Auto-calculated totals, percentages, pass/fail. An absent subject scores 0 and keeps its full maximum, fails the subject, and prints `ABT` — never `0`
-- Per-student analysis showing failed subjects
-- Printed-style banner on every export: school name, exam, session, `CLASS-…`, sheet title, and class teacher with designation
-- **Results** sheet: running **S.No.**, live formulas, yellow editable marks cells and thin borders; a **Rank** column using Excel `RANK` (ties share a place); totals shown as `205(400)` through a number format so the cell stays numeric; a white sheet ("Fail" bold italic, never filled); percentages stored as fractions and shown as `0.00%`
-- **Summary** sheet laid out like the teacher's mark-slip — one row per subject (`HINDI (40)`) with registered, appeared, passed (at the configured pass mark), pass %, subject average and the 33/50/60/75/90/95 % score bands, followed by an `OVER ALL CLASS` row and a class-wise block, all recalculating live from the Results sheet
-- **Subject Teacher** sheet — the same banner, eight metrics and five score bands, plus subject teacher, designation and employee type per subject, with its own class-wise block
-- 3-page PDF for printing or sharing: portrait marks pages (banner and Name column repeated, auto-shrink then continuation pages rather than clipping a student), then landscape Summary and Subject Teacher pages
-- Configurable export columns (reorder, add custom formula columns, delete built-ins)
-- Add/edit/delete exams and subjects with confirmations
-
-### Backup & Export
-- Monthly attendance reports (CSV, XLSX, PDF)
-- Full app backup as zip with manifest
-- Restore from backup with validation
-- Backups made on 1.2.x (schema v3) are refused rather than half-restored — take a fresh backup after upgrading
-- Share exports via system share sheet
-
----
-
-## 5. Project Structure
-
-```
-helper/
-├── app/src/main/java/com/example/helper/
-│   ├── coredata/          # Room DB, entities, DAOs, repositories
-│   ├── roster/            # Classes, students, sheet/row import
-│   ├── app-shell/         # Nav, theme, Today home
-│   ├── attendance/        # Attendance marking
-│   ├── studentfeedback/   # Feedback notes
-│   ├── homework/          # Homework assignments
-│   ├── parents/           # Announcements, contacts
-│   ├── exportbackup/      # Reports, backup/restore
-│   ├── examsresults/      # Exams, results, Excel/PDF export, exam import
-│   ├── animations/        # Motion system
-│   └── nav/               # Navigation routes/host
-├── app/src/main/res/      # Theme, launcher icons (generated from logo.png)
-├── modules/               # Blueprint cards (docs-only)
-├── _index/                # Module status & connections
-└── .github/workflows/     # CI/CD pipelines
-```
-
----
-
-## 6. Building & Running
+## Getting Started
 
 ### Prerequisites
-- Android Studio (or command line)
-- JDK 17
-- Android SDK with API 37
 
-### Build commands
+- JDK 17 (CI uses Temurin 17)
+- Android SDK platform API 37
+- Android Studio (optional — the Gradle wrapper is enough)
 
-```bash
-# Debug build
-./gradlew assembleDebug
+### Installation
 
-# Release build (requires signing - see below)
-./gradlew assembleRelease
+1. Clone the repository:
 
-# Run unit tests
-./gradlew testDebugUnitTest
+   ```bash
+   git clone https://github.com/Aariso0/helper.git
+   cd helper
+   ```
 
-# Full check (compile, build, test)
-./gradlew :app:compileDebugKotlin :app:assembleDebug :app:testDebugUnitTest
+2. Compile, build and test (the project gate):
+
+   ```bash
+   ./gradlew :app:compileDebugKotlin :app:assembleDebug :app:testDebugUnitTest --console=plain
+   ```
+
+3. Install the debug APK output on a connected device:
+
+   ```bash
+   adb install app/build/outputs/apk/debug/app-debug.apk
+   ```
+
+Release builds need signing — see [Configuration](#configuration).
+
+[↑ Back to top](#top)
+
+## Usage
+
+- **Start**: the app opens to a Today home screen with bottom navigation.
+- **Attendance**: open a class, tap the students who are absent (everyone starts Present), and use the snackbar to undo the last action.
+- **Exams**: create an exam or import one from an Excel sheet, then enter marks subject by subject. The results screen shows totals, percentages, pass/fail and rank.
+- **Export the PDF**: open an exam's results and choose **Export as PDF** from the overflow menu. The app writes the three-page PDF to its cache and opens the Android share sheet so you can print or save it.
+- **Export Excel**: the exam results screen also writes a workbook with Results, Summary and Subject Teacher sheets.
+- **Homework and reports**: attach files or share homework through the system share sheet; generate monthly reports or a zip backup from the export/backup screen.
+
+[↑ Back to top](#top)
+
+## Project Structure
+
+<details>
+<summary>Expanded source tree</summary>
+
+```text
+helper/
+├── app/src/main/java/com/example/helper/
+│   ├── MainActivity.kt          # launcher activity
+│   ├── coredata/                # Room database, entities, DAOs, repositories
+│   ├── roster/                  # classes, students, sheet/row import
+│   ├── attendance/              # attendance marking
+│   ├── studentfeedback/         # feedback notes and tags
+│   ├── homework/                # assignments and attachments
+│   ├── parents/                 # announcements and contact log
+│   ├── examsresults/            # exams, mark entry, Excel/PDF export, import
+│   ├── exportbackup/            # reports and backup/restore
+│   ├── scaffold/, nav/, theme/  # app shell, routes, theming
+│   └── share/, today/, motion/  # share helpers, home screen, motion
+├── app/src/main/res/            # theme, strings, launcher icons
+├── app/src/test/                # JVM unit tests
+├── modules/                     # blueprint cards (docs only)
+├── _index/                      # module status and connections
+└── .github/workflows/           # ci.yml and release.yml
 ```
 
-### Release Signing
+</details>
 
-For release builds, create a `keystore.properties` file in the project root:
+[↑ Back to top](#top)
 
-```properties
-storeFile=/path/to/your/keystore.jks
-storePassword=your_store_password
-keyAlias=your_key_alias
-keyPassword=your_key_password
-```
+## Configuration
 
-Or set environment variables: `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+Debug builds need no secrets. Release builds do:
 
-See [RELEASE_SIGNING.md](RELEASE_SIGNING.md) for detailed instructions.
+- A gitignored `keystore.properties` file in the project root:
 
----
+  ```properties
+  storeFile=/path/to/your/keystore.jks
+  storePassword=your_store_password
+  keyAlias=your_key_alias
+  keyPassword=your_key_password
+  ```
 
-## 7. CI/CD
+- Or the equivalent environment variables, which take precedence: `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
 
-GitHub Actions workflows are configured:
+CI uses `ci.yml` on pushes and pull requests to `main` (tests, debug build, Kotlin compile), and `release.yml` on `v*` tags, which needs the `production` environment plus the secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`. See [RELEASE_SIGNING.md](RELEASE_SIGNING.md).
 
-- **`ci.yml`** — Runs on push/PR to `main`: compiles, tests, builds debug APK
-- **`release.yml`** — Runs on tags `v*`: requires `production` environment approval, builds signed release APK, verifies signature, publishes to GitHub Releases
+[↑ Back to top](#top)
 
-Required GitHub secrets for releases: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+## Roadmap
 
----
+From the module status tracker in [`_index/MODULES.md`](_index/MODULES.md):
 
-## 8. Privacy & Security
+- **Animations** — spring motion system drafted but not started; will touch every built screen.
+- **App shell** — marked needs-rework until the animations pass lands.
+- **Server comms** — planned v3 placeholder, not researched or built.
 
-- **All data stays local** — No cloud sync, no login, no analytics
-- **No network permission** — App works fully offline
-- **Secure signing** — Keystores excluded from Git, CI uses secrets securely
-- **Backup safety** — Restore is file-level with validation, never reuses DB after restore
-- **No PII in repo** — Student data, chat logs, and local configs are gitignored
+[↑ Back to top](#top)
 
----
+## Contributing
 
-## 9. Future: Self-Hostable Server Support
+1. Fork the repository.
+2. Create a branch: `git checkout -b feature/my-change`.
+3. Commit your change and push the branch.
+4. Open a pull request to `main`. CI runs on pull requests to `main`.
 
-Server connectivity is **not implemented** in the current prototype. However, the app is designed with a clear path for future expansion:
-
-- **Planned module:** [modules/server-comms.md](modules/server-comms.md) — Placeholder for v3 server integration
-- **Self-hostable:** The future backend is intended to run on local school servers (LAN) with no dependency on third-party cloud providers
-- **Offline-first remains** — Even with server support, the app will continue to work fully offline with local data
-- **Opt-in only** — Server features will be completely optional; the app remains functional as a standalone local app
-- **Data ownership** — Schools will retain full control of their data on their own infrastructure
-
-**Status:** `planned` — Not researched or built yet. Will only be implemented when explicitly opened for v3 development.
-
----
-
-## 10. Documentation
-
-- [RELEASE_SIGNING.md](RELEASE_SIGNING.md) — Release signing and CI/CD setup
-- [modules/](modules/) — Detailed blueprint cards for each module
-- [_index/MODULES.md](_index/MODULES.md) — Build status tracker
-- [_shared/](./_shared/) — Project constraints and glossary
-
----
+[↑ Back to top](#top)
 
 ## License
 
-See [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for details.
+MIT — Copyright (c) 2026 helper contributors. See [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+[↑ Back to top](#top)
+
+## Contact
+
+[Aariso0 on GitHub](https://github.com/Aariso0) · [Issues](https://github.com/Aariso0/helper/issues)
