@@ -57,18 +57,9 @@ object ExamPdfWriter {
     private const val ANALYSIS_ROW_HEIGHT = 15f
     private const val SIGNATURE_GAP = 10f
 
-    // S.No. and Roll stay narrow, the name is the widest column, and the data
-    // columns share what is left. The name grows into any unused space.
-    private const val SERIAL_WIDTH = ExamPdfPagePlan.SERIAL_WIDTH
-    private const val ROLL_WIDTH = ExamPdfPagePlan.ROLL_WIDTH
-    private const val MIN_NAME_WIDTH = ExamPdfPagePlan.MIN_NAME_WIDTH
-    private const val MIN_DATA_WIDTH = ExamPdfPagePlan.MIN_DATA_WIDTH
-    private const val SUBJECT_WIDTH = 48f
-    /** Fits `Total Obtained` over `(400)` when the header wraps to two lines. */
-    private const val TOTAL_WIDTH = 66f
-    private const val PERCENT_WIDTH = 40f
-    private const val RESULT_WIDTH = 40f
-    private const val RANK_WIDTH = 26f
+    /** No table prints below this size; long cells wrap instead. */
+    private const val MIN_FONT_SIZE = ExamPdfLayout.MIN_TEXT_SIZE
+    private const val FONT_STEP = 0.5f
 
     private val BANNER_BLUE = Color.parseColor(ExportPalette.BANNER_BLUE)
     private val HEADER_YELLOW = Color.parseColor(ExportPalette.HEADER_YELLOW)
@@ -178,12 +169,13 @@ object ExamPdfWriter {
         }
 
         val fit = ExamPdfLayout.fit(availableBodyHeight(), table.rows.size)
-        val pages = sections.flatMap { section ->
-            if (section.rows.isEmpty()) {
-                listOf(section to emptyList())
-            } else {
-                section.rows.chunked(fit.rowsPerPage).map { rows -> section to rows }
-            }
+        val measured = sections.map { section ->
+            measureSection(section, usableWidth(), fit.textSize, fit.rowHeight) { index -> index == 2 }
+        }
+        val pages = measured.flatMap { section ->
+            val bodyHeight = availableBodyHeight() - (section.headerHeight - HEADER_HEIGHT)
+            ExamPdfRowPaginator.paginate(section.rows, { it.height }, bodyHeight)
+                .map { rows -> section to rows }
         }
 
         val plan = ExamPdfPagePlan.build(marksPageCount = pages.size, hasAnalysis = stats != null)
@@ -194,11 +186,13 @@ object ExamPdfWriter {
             )
             drawPage(
                 canvas = page.canvas,
-                section = section,
+                section = section.section,
                 rows = rows,
-                widths = columnWidths(section, fit),
+                widths = section.widths,
+                textSize = section.textSize,
+                headerHeight = section.headerHeight,
                 banner = banner,
-                fit = fit,
+                minRowHeight = fit.rowHeight,
                 pageNumber = index + 1,
                 pageCount = plan.size,
             )
@@ -238,10 +232,12 @@ object ExamPdfWriter {
     private fun drawPage(
         canvas: Canvas,
         section: ExamPdfSection,
-        rows: List<List<String>>,
+        rows: List<WrappedRow>,
         widths: FloatArray,
+        textSize: Float,
+        headerHeight: Float,
         banner: ExamPdfBanner,
-        fit: ExamPdfFit,
+        minRowHeight: Float,
         pageNumber: Int,
         pageCount: Int,
     ) {
@@ -251,8 +247,8 @@ object ExamPdfWriter {
         drawBanner(canvas, banner, left, right, MARGIN)
 
         val headerTop = MARGIN + BANNER_HEIGHT
-        val headerBottom = headerTop + HEADER_HEIGHT
-        drawTableHeader(canvas, section, widths, headerTop, headerBottom, fit)
+        val headerBottom = headerTop + headerHeight
+        drawTableHeader(canvas, section, widths, headerTop, headerBottom, headerHeight, textSize)
 
         val footerText = "Page $pageNumber of $pageCount"
         val footerPaint = textPaint(7f)
@@ -268,17 +264,16 @@ object ExamPdfWriter {
             canvas.drawText(
                 "No students with marks yet.",
                 left + CELL_PADDING,
-                headerBottom + fit.rowHeight,
-                textPaint(fit.textSize),
+                headerBottom + minRowHeight,
+                textPaint(textSize),
             )
             return
         }
 
         var top = headerBottom
         rows.forEach { row ->
-            val bottom = top + fit.rowHeight
-            drawDataRow(canvas, section, row, widths, top, bottom, fit)
-            top = bottom
+            drawDataRow(canvas, section, row, widths, top, textSize)
+            top += row.height
         }
         canvas.drawLine(left, top, right, top, BORDER_PAINT)
     }
@@ -297,10 +292,17 @@ object ExamPdfWriter {
         val row1Bottom = top + BANNER_ROW_1
         FILL.color = BANNER_BLUE
         canvas.drawRect(left, top, right, row1Bottom, FILL)
-        val schoolPaint = textPaint(12f, bold = true)
+        val schoolName = banner.schoolName.trim()
+        var schoolSize = 12f
+        val schoolPaint = textPaint(schoolSize, bold = true)
+        val schoolRoom = width - 2 * CELL_PADDING
+        while (schoolSize > MIN_FONT_SIZE && schoolPaint.measureText(schoolName) > schoolRoom) {
+            schoolSize = (schoolSize - FONT_STEP).coerceAtLeast(MIN_FONT_SIZE)
+            schoolPaint.textSize = schoolSize
+        }
         drawCentered(
             canvas,
-            banner.schoolName.trim(),
+            schoolName,
             left + CELL_PADDING,
             right - CELL_PADDING,
             top,
@@ -385,19 +387,60 @@ object ExamPdfWriter {
         val right = LANDSCAPE_WIDTH - MARGIN
         drawBanner(canvas, banner, left, right, MARGIN, statementTitle = "")
 
-        val widths = summaryColumnWidths()
+        val headers = listOf(ExamSummarySheet.SUBJECT_HEADER) +
+            ExamSummarySheet.METRIC_HEADERS + ExamSummarySheet.CLASS_WISE_HEADERS
+        val cells = stats.subjects.map { subject ->
+            val row = mutableListOf(
+                subject.name,
+                subject.strength.toString(),
+                subject.appeared.toString(),
+                subject.passed.toString(),
+                percentLabel(subject.passShare),
+                percentLabel(subject.averageShare),
+            )
+            subject.bands7.forEach { row.add(it.toString()) }
+            repeat(ExamSummarySheet.CLASS_WISE_HEADERS.size) { row.add("") }
+            row
+        }.toMutableList()
+        val overall = stats.overall
+        val overallCells = mutableListOf(
+            ExamSummarySheet.OVERALL_LABEL,
+            overall.strength.toString(),
+            overall.appeared.toString(),
+            overall.passed.toString(),
+            percentLabel(overall.passShare),
+            percentLabel(overall.averageShare),
+        )
+        overall.bands7.forEach { overallCells.add(it.toString()) }
+        overallCells.add(overall.appeared.toString())
+        overallCells.add(overall.passed.toString())
+        overallCells.add(percentLabel(overall.passShare))
+        overallCells.add(percentLabel(overall.averageShare))
+        cells.add(overallCells)
+
+        val section = ExamPdfSection(
+            headers = headers,
+            subHeaders = List(headers.size) { "" },
+            kinds = List(headers.size) { null },
+            rows = cells,
+        )
+        val measured = measureSection(
+            section, right - left, 7.5f, ANALYSIS_ROW_HEIGHT,
+            boldRow = { it == section.rows.lastIndex },
+        ) { index -> index == 0 }
+        val widths = measured.widths
         val titleTop = MARGIN + BANNER_HEIGHT
         val titleBottom = titleTop + ANALYSIS_TITLE_HEIGHT
         val headerTop = titleBottom
-        val headerBottom = headerTop + ANALYSIS_HEADER_HEIGHT
+        val headerBottom = headerTop + measured.headerHeight
         val splitX = columnX(left, widths, ExamSummarySheet.CLASS_WISE_COLUMN - 1)
 
         drawTitleCell(canvas, "RESULT- ANALYSIS", left, splitX, titleTop, titleBottom)
         drawTitleCell(canvas, ExamSummarySheet.CLASS_WISE_TITLE, splitX, right, titleTop, titleBottom)
 
-        val headerPaint = textPaint(7f, bold = true)
+        val headerPaint = textPaint(measured.textSize, bold = true)
         drawAnalysisHeader(
-            canvas, ExamSummarySheet.SUBJECT_HEADER, left, columnX(left, widths, 1),
+            canvas, headers[0], left, columnX(left, widths, 1),
             headerTop, headerBottom, headerPaint, fill = null,
         )
         ExamSummarySheet.METRIC_HEADERS.forEachIndexed { index, header ->
@@ -416,41 +459,13 @@ object ExamPdfWriter {
         }
 
         var top = headerBottom
-        stats.subjects.forEach { subject ->
-            val bottom = top + ANALYSIS_ROW_HEIGHT
-            val cells = mutableListOf(
-                subject.name,
-                subject.strength.toString(),
-                subject.appeared.toString(),
-                subject.passed.toString(),
-                percentLabel(subject.passShare),
-                percentLabel(subject.averageShare),
+        measured.rows.forEachIndexed { index, row ->
+            drawAnalysisRow(
+                canvas, row, widths, left, top, summaryFills(), measured.textSize,
+                bold = index == measured.rows.lastIndex,
             )
-            subject.bands7.forEach { cells.add(it.toString()) }
-            repeat(ExamSummarySheet.CLASS_WISE_HEADERS.size) { cells.add("") }
-            drawAnalysisRow(canvas, cells, widths, left, top, bottom, summaryFills())
-            top = bottom
+            top += row.height
         }
-
-        val overall = stats.overall
-        val overallCells = mutableListOf(
-            ExamSummarySheet.OVERALL_LABEL,
-            overall.strength.toString(),
-            overall.appeared.toString(),
-            overall.passed.toString(),
-            percentLabel(overall.passShare),
-            percentLabel(overall.averageShare),
-        )
-        overall.bands7.forEach { overallCells.add(it.toString()) }
-        overallCells.add(overall.appeared.toString())
-        overallCells.add(overall.passed.toString())
-        overallCells.add(percentLabel(overall.passShare))
-        overallCells.add(percentLabel(overall.averageShare))
-        val overallBottom = top + ANALYSIS_ROW_HEIGHT
-        drawAnalysisRow(
-            canvas, overallCells, widths, left, top, overallBottom,
-            summaryFills(), bold = true,
-        )
 
         drawSignatures(canvas, LANDSCAPE_WIDTH, LANDSCAPE_HEIGHT)
         drawPageNumber(canvas, right, LANDSCAPE_HEIGHT, pageNumber, pageCount)
@@ -469,33 +484,14 @@ object ExamPdfWriter {
         val right = LANDSCAPE_WIDTH - MARGIN
         drawBanner(canvas, banner, left, right, MARGIN, statementTitle = "")
 
-        val widths = subjectTeacherColumnWidths()
-        val titleTop = MARGIN + BANNER_HEIGHT
-        val titleBottom = titleTop + ANALYSIS_TITLE_HEIGHT
-        val headerTop = titleBottom
-        val headerBottom = headerTop + ANALYSIS_HEADER_HEIGHT
-
-        drawTitleCell(canvas, "RESULT- ANALYSIS", left, right, titleTop, titleBottom)
-
         val headers = mutableListOf(ExamSubjectTeacherSheet.SUBJECT_HEADER)
         headers.addAll(ExamSubjectTeacherSheet.METRIC_HEADERS)
         headers.addAll(ExamSubjectTeacherSheet.BAND_LABELS)
-        headers.add(HEADER_TITLE)
-        headers.add(HEADER_TEACHER_NAME)
-        headers.add(HEADER_DESIGNATION)
-        headers.add(HEADER_EMPLOYEE_TYPE)
-        val headerPaint = textPaint(6.5f, bold = true)
-        headers.forEachIndexed { index, header ->
-            drawAnalysisHeader(
-                canvas, header, columnX(left, widths, index), columnX(left, widths, index + 1),
-                headerTop, headerBottom, headerPaint, fill = null,
-            )
-        }
-
-        var top = headerBottom
-        stats.subjects.forEachIndexed { index, subject ->
-            val bottom = top + ANALYSIS_ROW_HEIGHT
-            val cells = subjectTeacherCells(
+        headers.addAll(
+            listOf(HEADER_TITLE, HEADER_TEACHER_NAME, HEADER_DESIGNATION, HEADER_EMPLOYEE_TYPE),
+        )
+        val cells = stats.subjects.mapIndexed { index, subject ->
+            subjectTeacherCells(
                 label = subject.name,
                 strength = subject.strength,
                 appeared = subject.appeared,
@@ -508,33 +504,60 @@ object ExamPdfWriter {
                 bands = subject.bands5,
                 teacher = subjectTeacherFields(subjects.getOrElse(index) { null }),
             )
-            drawAnalysisRow(
-                canvas, cells, widths, left, top, bottom, subjectTeacherFills(),
+        }.toMutableList()
+        val overall = stats.overall
+        cells.add(
+            subjectTeacherCells(
+                label = ExamSubjectTeacherSheet.OVERALL_LABEL,
+                strength = overall.strength,
+                appeared = overall.appeared,
+                absent = overall.absent,
+                passed = overall.passed,
+                failed = overall.failed,
+                total = overall.total,
+                passShare = overall.passShare,
+                averageShare = overall.averageShare,
+                bands = overall.bands5,
+                teacher = emptyList(),
+            ),
+        )
+
+        val section = ExamPdfSection(
+            headers = headers,
+            subHeaders = List(headers.size) { "" },
+            kinds = List(headers.size) { null },
+            rows = cells,
+        )
+        val measured = measureSection(
+            section, right - left, 7.5f, ANALYSIS_ROW_HEIGHT,
+            boldRow = { it == section.rows.lastIndex },
+        ) { index -> index == 0 || index >= ExamSubjectTeacherSheet.TITLE_COLUMN - 1 }
+        val widths = measured.widths
+        val titleTop = MARGIN + BANNER_HEIGHT
+        val titleBottom = titleTop + ANALYSIS_TITLE_HEIGHT
+        val headerTop = titleBottom
+        val headerBottom = headerTop + measured.headerHeight
+
+        drawTitleCell(canvas, "RESULT- ANALYSIS", left, right, titleTop, titleBottom)
+
+        val headerPaint = textPaint(measured.textSize, bold = true)
+        headers.forEachIndexed { index, header ->
+            drawAnalysisHeader(
+                canvas, header, columnX(left, widths, index), columnX(left, widths, index + 1),
+                headerTop, headerBottom, headerPaint, fill = null,
             )
-            top = bottom
         }
 
-        val overall = stats.overall
-        val overallCells = subjectTeacherCells(
-            label = ExamSubjectTeacherSheet.OVERALL_LABEL,
-            strength = overall.strength,
-            appeared = overall.appeared,
-            absent = overall.absent,
-            passed = overall.passed,
-            failed = overall.failed,
-            total = overall.total,
-            passShare = overall.passShare,
-            averageShare = overall.averageShare,
-            bands = overall.bands5,
-            teacher = emptyList(),
-        )
-        val overallBottom = top + ANALYSIS_ROW_HEIGHT
-        drawAnalysisRow(
-            canvas, overallCells, widths, left, top, overallBottom,
-            subjectTeacherFills(), bold = true,
-        )
+        var top = headerBottom
+        measured.rows.forEachIndexed { index, row ->
+            drawAnalysisRow(
+                canvas, row, widths, left, top, subjectTeacherFills(), measured.textSize,
+                bold = index == measured.rows.lastIndex,
+            )
+            top += row.height
+        }
 
-        drawClassWiseBlock(canvas, left, overallBottom + 10f, stats.overall)
+        drawClassWiseBlock(canvas, left, top + 10f, stats.overall)
         drawSignatures(canvas, LANDSCAPE_WIDTH, LANDSCAPE_HEIGHT)
         drawPageNumber(canvas, right, LANDSCAPE_HEIGHT, pageNumber, pageCount)
     }
@@ -613,31 +636,35 @@ object ExamPdfWriter {
 
     private fun drawAnalysisRow(
         canvas: Canvas,
-        cells: List<String>,
+        row: WrappedRow,
         widths: FloatArray,
         left: Float,
         top: Float,
-        bottom: Float,
         fills: List<Int?>,
+        textSize: Float,
         bold: Boolean = false,
     ) {
+        val bottom = top + row.height
         var x = left
-        cells.forEachIndexed { index, raw ->
+        row.cells.indices.forEach { index ->
             val width = widths.getOrElse(index) { 0f }
             val right = x + width
             fills.getOrNull(index)?.let { colour ->
                 FILL.color = colour
                 canvas.drawRect(x, top, right, bottom, FILL)
             }
-            val paint = textPaint(7.5f, bold = bold)
-            val maxWidth = (width - 2 * CELL_PADDING).coerceAtLeast(1f)
-            val text = TextUtils.ellipsize(raw, paint, maxWidth, TextUtils.TruncateAt.END)
-            val drawX = if (isNumeric(raw)) {
-                right - CELL_PADDING - paint.measureText(text, 0, text.length)
-            } else {
-                x + CELL_PADDING
+            val paint = textPaint(textSize, bold = bold)
+            val lineHeight = paint.descent() - paint.ascent()
+            var baseline = top + CELL_PADDING - paint.ascent()
+            row.lines.getOrElse(index) { listOf("") }.forEach { line ->
+                val drawX = if (isNumeric(line)) {
+                    right - CELL_PADDING - paint.measureText(line)
+                } else {
+                    x + CELL_PADDING
+                }
+                canvas.drawText(line, drawX, baseline, paint)
+                baseline += lineHeight
             }
-            canvas.drawText(text, 0, text.length, drawX, centeredBaseline(top, bottom, paint), paint)
             canvas.drawRect(x, top, right, bottom, BORDER_PAINT)
             x = right
         }
@@ -699,14 +726,25 @@ object ExamPdfWriter {
             percentLabel(overall.passShare),
             percentLabel(overall.averageShare),
         )
+        val valuePaint = textPaint(6.5f)
+        val valueRow = WrappedRow(
+            cells = values,
+            lines = values.map { value ->
+                ExamPdfTextWrap.wrap(
+                    value, { valuePaint.measureText(it) },
+                    (cellWidth - 2 * CELL_PADDING).coerceAtLeast(1f),
+                )
+            },
+            height = ANALYSIS_ROW_HEIGHT,
+        )
         drawAnalysisRow(
             canvas,
-            values,
+            valueRow,
             FloatArray(columns) { cellWidth },
             left,
             headerBottom,
-            valueBottom,
             List(columns) { TITLE_CREAM },
+            6.5f,
         )
         return valueBottom
     }
@@ -752,42 +790,17 @@ object ExamPdfWriter {
         return x
     }
 
-    /** A..M the summary metrics, N..Q the four class-wise cells. */
-    private fun summaryColumnWidths(): FloatArray {
-        val usable = LANDSCAPE_WIDTH - 2 * MARGIN
-        val name = 112f
-        val classWise = 50f
-        val metric = (usable - name - classWise * 4) / 12f
-        return FloatArray(ExamSummarySheet.LAST_COLUMN) { index ->
-            when {
-                index == 0 -> name
-                index <= ExamSummarySheet.CLASS_WISE_COLUMN - 2 -> metric
-                else -> classWise
-            }
-        }
-    }
-
-    /** A subjects, B..I metrics, J..N bands, O..R the four teacher fields. */
-    private fun subjectTeacherColumnWidths(): FloatArray {
-        val widths = mutableListOf(96f)
-        repeat(8) { widths.add(40f) }
-        repeat(5) { widths.add(38f) }
-        widths.addAll(listOf(46f, 86f, 62f, 52f))
-        val usable = LANDSCAPE_WIDTH - 2 * MARGIN
-        val scale = usable / widths.sum()
-        return FloatArray(widths.size) { index -> widths[index] * scale }
-    }
-
     private fun drawTableHeader(
         canvas: Canvas,
         section: ExamPdfSection,
         widths: FloatArray,
         top: Float,
         bottom: Float,
-        fit: ExamPdfFit,
+        headerHeight: Float,
+        textSize: Float,
     ) {
-        val middle = top + HEADER_HEIGHT / 2f
-        val paint = textPaint(fit.textSize.coerceAtLeast(6f), bold = true)
+        val middle = top + headerHeight / 2f
+        val paint = textPaint(textSize, bold = true)
         var x = MARGIN
         section.headers.forEachIndexed { index, header ->
             val width = widths.getOrElse(index) { 0f }
@@ -795,9 +808,9 @@ object ExamPdfWriter {
             val identifying = index < EXAM_PDF_FIXED_COLUMNS
             val kind = section.kinds.getOrNull(index)
             val subject = !identifying && kind == null
-            // S.No. and Roll No. span both rows, as does every computed
-            // column. The name column keeps "/Max.Marks" beneath it.
-            val merged = index == 0 || index == 1 || (!identifying && kind != null)
+            // S.No., Roll No., Student Name and every computed column span both
+            // header rows; only the subject columns show their maximum beneath.
+            val merged = index <= 2 || (!identifying && kind != null)
 
             when {
                 subject -> {
@@ -840,12 +853,12 @@ object ExamPdfWriter {
     private fun drawDataRow(
         canvas: Canvas,
         section: ExamPdfSection,
-        row: List<String>,
+        row: WrappedRow,
         widths: FloatArray,
         top: Float,
-        bottom: Float,
-        fit: ExamPdfFit,
+        textSize: Float,
     ) {
+        val bottom = top + row.height
         var x = MARGIN
         section.headers.indices.forEach { index ->
             val width = widths.getOrElse(index) { 0f }
@@ -856,7 +869,7 @@ object ExamPdfWriter {
                 FILL.color = HEADER_YELLOW
                 canvas.drawRect(x, top, right, bottom, FILL)
             }
-            val raw = row.getOrElse(index) { "" }
+            val raw = row.cells.getOrElse(index) { "" }
             if (kind == ExportColumnKind.RANK) {
                 when (raw) {
                     "1" -> { FILL.color = RANK_1; canvas.drawRect(x, top, right, bottom, FILL) }
@@ -864,20 +877,18 @@ object ExamPdfWriter {
                     "3" -> { FILL.color = RANK_3; canvas.drawRect(x, top, right, bottom, FILL) }
                 }
             }
-            val paint = if (isFail(raw)) {
-                textPaint(if (index == 2) fit.nameTextSize else fit.textSize, bold = true, italic = true)
-            } else {
-                textPaint(if (index == 2) fit.nameTextSize else fit.textSize)
+            val paint = cellTextPaint(textSize, raw)
+            val lineHeight = paint.descent() - paint.ascent()
+            var baseline = top + CELL_PADDING - paint.ascent()
+            row.lines.getOrElse(index) { listOf("") }.forEach { line ->
+                val drawX = if (isNumeric(line)) {
+                    right - CELL_PADDING - paint.measureText(line)
+                } else {
+                    x + CELL_PADDING
+                }
+                canvas.drawText(line, drawX, baseline, paint)
+                baseline += lineHeight
             }
-            val maxWidth = (width - 2 * CELL_PADDING).coerceAtLeast(1f)
-            val text = TextUtils.ellipsize(raw, paint, maxWidth, TextUtils.TruncateAt.END)
-            val baseline = centeredBaseline(top, bottom, paint)
-            val drawX = if (isNumeric(raw)) {
-                right - CELL_PADDING - paint.measureText(text, 0, text.length)
-            } else {
-                x + CELL_PADDING
-            }
-            canvas.drawText(text, 0, text.length, drawX, baseline, paint)
             canvas.drawRect(x, top, right, bottom, BORDER_PAINT)
             x = right
         }
@@ -893,16 +904,11 @@ object ExamPdfWriter {
         paint: TextPaint,
     ) {
         val maxWidth = (right - left - 2 * CELL_PADDING).coerceAtLeast(1f)
-        val lines = if (paint.measureText(text) <= maxWidth) {
-            listOf(text)
-        } else {
-            wrapTwoLines(text, paint, maxWidth)
-        }
+        val lines = ExamPdfTextWrap.wrap(text, { paint.measureText(it) }, maxWidth)
         val lineHeight = paint.descent() - paint.ascent()
         var baseline = top + (bottom - top - lineHeight * lines.size) / 2f - paint.ascent()
         lines.forEach { line ->
-            val clipped = TextUtils.ellipsize(line, paint, maxWidth, TextUtils.TruncateAt.END)
-            canvas.drawText(clipped, 0, clipped.length, left + CELL_PADDING, baseline, paint)
+            canvas.drawText(line, left + CELL_PADDING, baseline, paint)
             baseline += lineHeight
         }
     }
@@ -983,106 +989,103 @@ object ExamPdfWriter {
         color = Color.rgb(32, 33, 36)
     }
 
-    private fun wrapTwoLines(text: String, paint: TextPaint, maxWidth: Float): List<String> {
-        val words = text.split(' ')
-        var firstLine = ""
-        var index = 0
-        while (index < words.size) {
-            val candidate = if (firstLine.isEmpty()) words[index] else "$firstLine ${words[index]}"
-            if (firstLine.isNotEmpty() && paint.measureText(candidate) > maxWidth) break
-            firstLine = candidate
-            index++
+    /** Matches the paint [drawDataRow] uses, so measuring cannot understate a "Fail" cell. */
+    private fun cellTextPaint(size: Float, cell: String, bold: Boolean = false): TextPaint {
+        val fail = isFail(cell)
+        return textPaint(size, bold = bold || fail, italic = fail)
+    }
+
+    /**
+     * Measures every header and cell with the font that will draw it, then
+     * shares the page by the pure sizer. If even the widest words cannot fit,
+     * the font steps down to the floor and the wrapper splits long words.
+     */
+    private fun measureSection(
+        section: ExamPdfSection,
+        availableWidth: Float,
+        startSize: Float,
+        minRowHeight: Float,
+        boldRow: (Int) -> Boolean = { false },
+        flexible: (Int) -> Boolean,
+    ): MeasuredSection {
+        var size = startSize
+        lateinit var specs: List<ExamPdfColumnSpec>
+        lateinit var layout: ExamPdfColumnLayout
+        while (true) {
+            specs = measureSpecs(section, size, boldRow, flexible)
+            layout = ExamPdfColumnSizer.size(specs, availableWidth)
+            if (!layout.needsSmallerFont || size <= MIN_FONT_SIZE) break
+            size = (size - FONT_STEP).coerceAtLeast(MIN_FONT_SIZE)
         }
-        val rest = words.drop(index).joinToString(" ")
-        return if (rest.isEmpty()) listOf(firstLine) else listOf(firstLine, rest)
+
+        val widths = layout.widths
+        val rows = section.rows.mapIndexed { rowIndex, cells ->
+            val lines = cells.mapIndexed { index, cell ->
+                val inner = (widths.getOrElse(index) { 0f } - 2 * CELL_PADDING).coerceAtLeast(1f)
+                val paint = cellTextPaint(size, cell, boldRow(rowIndex))
+                ExamPdfTextWrap.wrap(cell, { paint.measureText(it) }, inner)
+            }
+            val paint = cellTextPaint(size, "", boldRow(rowIndex))
+            val lineHeight = paint.descent() - paint.ascent()
+            val height = (lines.maxOf { it.size } * lineHeight + CELL_PADDING)
+                .coerceAtLeast(minRowHeight)
+            WrappedRow(cells, lines, height)
+        }
+
+        val headerPaint = textPaint(size, bold = true)
+        val headerLineHeight = headerPaint.descent() - headerPaint.ascent()
+        var headerLines = 1
+        section.headers.indices.forEach { index ->
+            val inner = (widths.getOrElse(index) { 0f } - 2 * CELL_PADDING).coerceAtLeast(1f)
+            val heading = ExamPdfTextWrap.wrap(
+                section.headers.getOrElse(index) { "" }, { headerPaint.measureText(it) }, inner,
+            ).size
+            val sub = ExamPdfTextWrap.wrap(
+                section.subHeaders.getOrElse(index) { "" }, { headerPaint.measureText(it) }, inner,
+            ).size
+            val identifying = index < EXAM_PDF_FIXED_COLUMNS
+            val merged = index <= 2 || (!identifying && section.kinds.getOrNull(index) != null)
+            headerLines = maxOf(headerLines, if (merged) maxOf(heading, sub) else heading + sub)
+        }
+        val headerHeight = maxOf(
+            HEADER_HEIGHT,
+            headerLines * headerLineHeight + 2 * CELL_PADDING,
+        )
+        return MeasuredSection(section, widths, size, rows, headerHeight)
+    }
+
+    private fun measureSpecs(
+        section: ExamPdfSection,
+        textSize: Float,
+        boldRow: (Int) -> Boolean,
+        flexible: (Int) -> Boolean,
+    ): List<ExamPdfColumnSpec> {
+        val headerPaint = textPaint(textSize, bold = true)
+        return section.headers.indices.map { index ->
+            val measured = mutableListOf<Pair<String, TextPaint>>()
+            measured.add(section.headers.getOrElse(index) { "" } to headerPaint)
+            measured.add(section.subHeaders.getOrElse(index) { "" } to headerPaint)
+            section.rows.forEachIndexed { rowIndex, row ->
+                val cell = row.getOrElse(index) { "" }
+                measured.add(cell to cellTextPaint(textSize, cell, boldRow(rowIndex)))
+            }
+            val maxWidth = measured.maxOf { (text, paint) -> paint.measureText(text) } + 2 * CELL_PADDING
+            val isFlexible = flexible(index)
+            val minWidth = if (isFlexible) {
+                (measured.flatMap { (text, paint) ->
+                    text.split(' ').filter { it.isNotEmpty() }.map { paint.measureText(it) }
+                }.maxOrNull() ?: 0f) + 2 * CELL_PADDING
+            } else {
+                maxWidth
+            }
+            ExamPdfColumnSpec(maxWidth, minWidth, isFlexible)
+        }
     }
 
     /** Numbers and percentages line up on the right; words on the left. */
     private fun isNumeric(value: String): Boolean = NUMBER.matches(value)
 
     private fun isFail(value: String): Boolean = value.equals("Fail", ignoreCase = true)
-
-    /**
-     * Priority (high→low): S.No. > Roll No. > Name > subject marks > Percentage
-     * > Result > Rank > everything else. Lower priority shrinks first until the
-     * page fits; headings are as important as entries, so a higher-priority
-     * heading is not truncated to make room for a lower-priority column.
-     */
-    private fun columnWidths(section: ExamPdfSection, fit: ExamPdfFit): FloatArray {
-        val usable = usableWidth()
-        val n = section.headers.size
-        if (n == 0) return FloatArray(0)
-        val headerPaint = textPaint(fit.textSize.coerceAtLeast(6f), bold = true)
-        val bodyPaint = textPaint(fit.textSize)
-        val priorities = IntArray(n) { index -> columnPriority(index, section.kinds.getOrNull(index)) }
-        val need = FloatArray(n) { index ->
-            val header = section.headers.getOrElse(index) { "" }
-            val headerW = headerPaint.measureText(header) + 2 * CELL_PADDING
-            val contentW = contentFloor(index, section.kinds.getOrNull(index), bodyPaint) + 2 * CELL_PADDING
-            maxOf(headerW, contentW, absoluteFloor(index, priorities[index]))
-        }
-        // Never truncate high-priority headings; low priority may shrink to a
-        // content floor when space runs out.
-        val minWidth = FloatArray(n) { index ->
-            val header = section.headers.getOrElse(index) { "" }
-            val headerW = headerPaint.measureText(header) + 2 * CELL_PADDING
-            val contentW = contentFloor(index, section.kinds.getOrNull(index), bodyPaint) + 2 * CELL_PADDING
-            if (priorities[index] <= 4) maxOf(headerW, contentW, 12f) else maxOf(contentW, 12f)
-        }
-
-        val widths = need.copyOf()
-        var deficit = widths.sum() - usable
-        if (deficit <= 0f) {
-            if (n > 2) widths[2] += -deficit // extra room to the name
-            return widths
-        }
-        val order = (0 until n).sortedByDescending { priorities[it] }
-        for (i in order) {
-            if (deficit <= 0f) break
-            val take = (widths[i] - minWidth[i]).coerceAtLeast(0f).coerceAtMost(deficit)
-            widths[i] -= take
-            deficit -= take
-        }
-        if (deficit > 0f) {
-            val total = widths.sum()
-            if (total > 0f) for (i in widths.indices) widths[i] *= usable / total
-        }
-        return widths
-    }
-
-    private fun columnPriority(index: Int, kind: ExportColumnKind?): Int = when {
-        index == 0 -> 0
-        index == 1 -> 1
-        index == 2 -> 2
-        index >= EXAM_PDF_FIXED_COLUMNS && kind == null -> 3
-        kind == ExportColumnKind.PERCENTAGE -> 4
-        kind == ExportColumnKind.RESULT -> 5
-        kind == ExportColumnKind.RANK -> 6
-        else -> 7
-    }
-
-    private fun absoluteFloor(index: Int, priority: Int): Float = when {
-        index == 0 -> SERIAL_WIDTH
-        index == 1 -> ROLL_WIDTH
-        index == 2 -> MIN_NAME_WIDTH
-        priority <= 4 -> 26f
-        else -> 18f
-    }
-
-    private fun contentFloor(index: Int, kind: ExportColumnKind?, paint: TextPaint): Float {
-        val sample = when {
-            index == 0 -> "99"
-            index == 1 -> "9999"
-            index == 2 -> "Student Name Here"
-            index >= EXAM_PDF_FIXED_COLUMNS && kind == null -> "100"
-            kind == ExportColumnKind.PERCENTAGE -> "100.00%"
-            kind == ExportColumnKind.RESULT -> "Fail"
-            kind == ExportColumnKind.RANK -> "99"
-            kind == ExportColumnKind.TOTAL_OBTAINED -> "999(999)"
-            else -> "9999"
-        }
-        return paint.measureText(sample)
-    }
 
     private fun availableBodyHeight(): Float {
         val bodyTop = MARGIN + BANNER_HEIGHT + HEADER_HEIGHT
@@ -1126,6 +1129,22 @@ object ExamPdfWriter {
 
     private val NUMBER = Regex("""-?\d+(\.\d+)?%?|\d+\(\d+\)""")
 }
+
+/** A row already wrapped to its measured column widths, with its drawn height. */
+private data class WrappedRow(
+    val cells: List<String>,
+    val lines: List<List<String>>,
+    val height: Float,
+)
+
+/** A section measured with the font that will draw it, ready to paginate. */
+private data class MeasuredSection(
+    val section: ExamPdfSection,
+    val widths: FloatArray,
+    val textSize: Float,
+    val rows: List<WrappedRow>,
+    val headerHeight: Float,
+)
 
 /** The four printed banner rows, shared by every page of the PDF. */
 private data class ExamPdfBanner(

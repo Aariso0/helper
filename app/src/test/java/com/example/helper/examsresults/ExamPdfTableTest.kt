@@ -58,6 +58,15 @@ class ExamPdfTableTest {
     }
 
     @Test
+    fun `the name column has no max marks label and subjects keep theirs`() {
+        val table = ExamPdfTableBuilder.build(subjects, listOf(asha))
+
+        assertEquals("", table.subHeaders[2])
+        assertEquals(listOf("100", "50"), table.subHeaders.subList(3, 5))
+        assertFalse("no stray /Max.Marks label", table.subHeaders.any { it.contains("Max.Marks") })
+    }
+
+    @Test
     fun `S No numbers each row from one`() {
         val ravi = asha.copy(
             student = student("s2", "Ravi", "2"),

@@ -15,8 +15,11 @@ interface ExamMarkDao {
     @Query("SELECT * FROM exam_marks WHERE examId = :examId AND studentId = :studentId")
     fun observeForStudent(examId: String, studentId: String): Flow<List<ExamMark>>
 
-    @Query("SELECT * FROM exam_marks WHERE studentId = :studentId")
-    fun observeByStudent(studentId: String): Flow<List<ExamMark>>
+    @Query(
+        "SELECT m.* FROM exam_marks AS m INNER JOIN exams AS e ON m.examId = e.id " +
+            "WHERE e.classId = :classId",
+    )
+    fun observeByClass(classId: String): Flow<List<ExamMark>>
 
     @Query("SELECT * FROM exam_marks WHERE examId = :examId AND subjectId = :subjectId")
     fun observeForSubject(examId: String, subjectId: String): Flow<List<ExamMark>>

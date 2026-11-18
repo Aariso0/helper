@@ -63,11 +63,9 @@ class ExamRepository(
     }
 
     fun observeMarks(examId: String): Flow<List<ExamMark>> = markDao.observeByExam(examId)
+    fun observeMarksForClass(classId: String): Flow<List<ExamMark>> = markDao.observeByClass(classId)
     fun observeMarksForStudent(examId: String, studentId: String): Flow<List<ExamMark>> =
         markDao.observeForStudent(examId, studentId)
-
-    fun observeMarksForStudent(studentId: String): Flow<List<ExamMark>> =
-        markDao.observeByStudent(studentId)
 
     suspend fun getMarks(examId: String): List<ExamMark> = markDao.getByExam(examId)
 

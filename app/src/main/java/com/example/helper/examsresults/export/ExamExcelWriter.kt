@@ -141,16 +141,16 @@ object ExamExcelWriter {
         sheet.appendRow(headers)
 
         val maxMarksRow = MutableList<CellValue?>(totalColumns) { null }
-        maxMarksRow[2] = TextCellValue("/Max.Marks")
         subjects.forEachIndexed { index, subject ->
             maxMarksRow[3 + index] = IntCellValue(subject.maxMarks.toLong())
         }
         sheet.appendRow(maxMarksRow)
 
-        // Two header rows: S.No. and Roll No. span both, the name column keeps
-        // "/Max.Marks" beneath it, and every computed column spans both.
+        // Two header rows: the identifying and computed columns span both. The
+        // subject maxima sit on row two; the name needs no "/Max.Marks" label.
         mergeHeader(sheet, column = 0)
         mergeHeader(sheet, column = 1)
+        mergeHeader(sheet, column = 2)
         ordered.indices.forEach { index -> mergeHeader(sheet, column = computedStartCol - 1 + index) }
 
         subjects.forEachIndexed { index, _ ->
@@ -166,12 +166,6 @@ object ExamExcelWriter {
                     horizontalAlignVal = HorizontalAlign.Center,
                 )
             }
-        }
-        setStyle(sheet, columnIndex = 2, rowIndex = HEADER_ROW - 1) {
-            it.copyWith(boldVal = true, horizontalAlignVal = HorizontalAlign.Center)
-        }
-        setStyle(sheet, columnIndex = 2, rowIndex = MAX_MARKS_ROW - 1) {
-            it.copyWith(boldVal = true, horizontalAlignVal = HorizontalAlign.Center)
         }
 
         val lastRow = if (results.isEmpty()) 0 else START_ROW + results.size - 1

@@ -46,14 +46,15 @@ class StudentExamHistoryViewModel(
                     studentFlow,
                     examRepository.observeByClass(classId),
                     examRepository.observeSubjectsForClass(classId),
-                    examRepository.observeMarksForStudent(studentId),
-                ) { student, exams, subjects, marks ->
+                    studentRepository.observeInClass(classId),
+                    examRepository.observeMarksForClass(classId),
+                ) { student, exams, subjects, classmates, marks ->
                     if (student == null) {
                         StudentExamHistoryUiState(loaded = true)
                     } else {
                         StudentExamHistoryUiState(
                             loaded = true,
-                            entries = ExamHistory.build(exams, subjects, marks, student),
+                            entries = ExamHistory.build(exams, subjects, marks, student, classmates),
                         )
                     }
                 }

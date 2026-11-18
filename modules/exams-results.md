@@ -4,7 +4,7 @@ status: researching   # planned · researching · drafted · needs-redo
 consumes: ["data-repositories", "class-student-picker", "share-helpers"]      # other module slugs / interfaces this module needs (use _shared/glossary.md terms)
 produces: ["exams-results-screen", "exam-export"]      # what this module exposes to others (use _shared/glossary.md terms)
 build: built   # not-started · in-progress · blocked · built · needs-rework — written by implementing agents, not the blueprint skill
-last-updated: 2026-10-28
+last-updated: 2026-11-19
 ---
 
 # Exams & Results
@@ -163,4 +163,21 @@ The core need is Excel compatibility: formulas must remain in the sheet so edits
   - **PDF.** `ExamPdfWriter` is portrait A4 with `Exam — Class` in the heading. `ExamPdfTable.sections()` repeats S.No./Roll No./Student Name on every column page and keeps computed columns last, so Total/Total Max/Percentage/Result trail the subjects onto the final page. Name is always the widest column, data headers wrap to two lines, and the footer is `Page x of y`.
   - **Wiring.** `ExamResultViewModel` observes `SchoolClassRepository` for `className`; `ExamDetailScreen` passes it to both writers; `ExportHeading` is the one place the exam + class title is assembled.
   - **Tests.** 105 tests green, zero warnings: `ExamSummarySheetTest` (block shape, baked pass marks, band chain, class-wise MAX, guards, missing columns), `ExamExcelWriterTest` (fraction formula, `numFmtId="10"`, horizontal summary, partial summary, `A1:Q5`), `ExamPdfTableTest` (repeated identity columns, computed columns last, class heading), `ExportColumnsTest` (no `*100`, marks-only summary).
-- **Last checkpoint:** 2026-11-03
+- **Rank on student exam cards (2026-11-19):**
+  - `app/src/main/java/com/example/helper/examsresults/util/ExamHistory.kt` — `ExamHistoryEntry.rank` is `1 + count(totals greater than this one)`, so ties share a place and a never-recorded exam has no rank. Matches the rank already printed in Excel/PDF exports.
+  - `app/src/main/java/com/example/helper/examsresults/ui/StudentExamHistory.kt` — the card's result line ends in `  ·  Rank N` when a rank exists.
+  - `app/src/main/java/com/example/helper/examsresults/viewmodel/StudentExamHistoryViewModel.kt` — combines the class's students with every exam's marks for that class, so each card can be ranked against the class.
+  - `app/src/main/java/com/example/helper/coredata/dao/ExamMarkDao.kt`, `app/src/main/java/com/example/helper/coredata/repository/ExamRepository.kt` — added `observeByClass` / `observeMarksForClass` and removed the orphaned one-student query. The earlier entry above naming `observeByStudent` describes the pre-change state.
+  - `app/src/test/java/com/example/helper/examsresults/ExamHistoryTest.kt` — rank order, tied ranks and no-rank cases pinned.
+- **PDF column sizing and wrapping (2026-11-19):**
+  - `app/src/main/java/com/example/helper/examsresults/export/ExamPdfColumnSizer.kt` — new pure helper: per-column max/min widths, page-width allocation (spare room to text columns, proportional growth in between, font-shrink signal when even single words cannot fit), per-cell word/character wrapping, and content-driven pagination. No Android imports, so the arithmetic is unit-tested.
+  - `app/src/main/java/com/example/helper/examsresults/export/ExamPdfWriter.kt` — every header and cell is measured with the exact paint that draws it (bold headers, bold-italic "Fail", bold analysis total row), then wrapped to its measured column. Font steps down in 0.5pt increments to the existing 6.5pt floor before a long word is split by character. Row and header heights follow the tallest wrapped cell; page-1 rows continue on new pages with the header repeated; pages 2-3 use the same measuring and wrapping. The banner school name shrinks before its ellipsis fallback. Hardcoded width tables and ellipsizing in table cells are gone.
+  - `app/src/main/java/com/example/helper/examsresults/export/ExamPdfLayout.kt` — `rowsPerPage` removed because pagination is now content-driven; `textSize` and `rowHeight` remain as the starting size and minimum row height.
+  - `app/src/test/java/com/example/helper/examsresults/ExamPdfColumnSizerTest.kt` (9 tests) and `app/src/test/java/com/example/helper/examsresults/ExamPdfLayoutTest.kt` (7 tests, including 35-row pagination) — long names, long single words, one heavy column, empty values and pagination pinned with a fake measure, since real canvas rendering cannot run in a JVM test. A manual device check of the printed pages is still outstanding.
+  - Full gate green: `./gradlew :app:compileDebugKotlin :app:assembleDebug :app:testDebugUnitTest --console=plain --rerun-tasks` — 168 tests, 0 failures, 0 warnings.
+- **Student Name header simplified (2026-11-19):**
+  - `app/src/main/java/com/example/helper/examsresults/export/ExamExcelWriter.kt` — the second header row no longer prints `/Max.Marks` under Student Name; the subject columns still carry their numeric maxima. Column C is now merged across both header rows like S.No., Roll No. and the computed columns, and the two per-row style calls on that cell are gone.
+  - `app/src/main/java/com/example/helper/examsresults/export/ExamPdfTable.kt` — the name column's sub-header is empty; the unused `MAX_MARKS` constant is removed.
+  - `app/src/main/java/com/example/helper/examsresults/export/ExamPdfWriter.kt` — the name column is treated as a merged header in both header drawing and measurement, so `Student Name` fills the header height instead of leaving a blank second line.
+  - `app/src/test/java/com/example/helper/examsresults/ExamPdfTableTest.kt` and `app/src/test/java/com/example/helper/examsresults/ExamExcelWriterTest.kt` — pin the empty name sub-header, intact subject maxima, the absence of `/Max.Marks` in the workbook strings, and the `C5:C6` merge. Full gate green: 170 tests, 0 failures, 0 warnings.
+- **Last checkpoint:** 2026-11-19

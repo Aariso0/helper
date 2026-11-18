@@ -27,6 +27,8 @@ data class ExamHistoryEntry(
     val examDate: Long?,
     val result: StudentResult,
     val subjectMarks: List<ExamSubjectMark>,
+    /** Position in the class for this exam, shared on ties; null if not entered. */
+    val rank: Int? = null,
 ) {
     val hasMarks: Boolean get() = subjectMarks.any { it.entered || it.isAbsent }
     val enteredCount: Int get() = subjectMarks.count { it.entered }
@@ -41,9 +43,11 @@ data class ExamHistoryEntry(
 }
 
 /**
- * Folds a class's exams, their subjects and one student's marks into the
- * newest-first history the student page shows. Kept separate from the
- * ViewModel so the PASS/FAIL/blank rules are unit-testable.
+ * Folds a class's exams, their subjects and every student's marks into the
+ * newest-first history the student page shows. [marks] and [classmates] cover
+ * the whole class so [student]'s rank can be worked out per exam; only this
+ * student's marks are shown in the card. Kept separate from the ViewModel so
+ * the PASS/FAIL/blank and rank rules are unit-testable.
  */
 object ExamHistory {
     fun build(
@@ -51,6 +55,7 @@ object ExamHistory {
         subjects: List<ExamSubject>,
         marks: List<ExamMark>,
         student: Student,
+        classmates: List<Student>,
     ): List<ExamHistoryEntry> {
         val subjectsByExam = subjects.groupBy { it.examId }
         val marksByExam = marks.groupBy { it.examId }
@@ -63,15 +68,16 @@ object ExamHistory {
             .map { exam ->
                 val examSubjects = subjectsByExam[exam.id].orEmpty()
                     .sortedBy { it.sortOrder }
-                val examMarks = marksByExam[exam.id].orEmpty()
-                    .filter { it.studentId == student.id }
+                val classMarks = marksByExam[exam.id].orEmpty()
+                val examMarks = classMarks.filter { it.studentId == student.id }
                 val marksBySubject = examMarks.associateBy { it.subjectId }
+                val result = ResultCalculator.calculate(student, examSubjects, examMarks)
 
                 ExamHistoryEntry(
                     examId = exam.id,
                     examName = exam.name,
                     examDate = exam.examDate,
-                    result = ResultCalculator.calculate(student, examSubjects, examMarks),
+                    result = result,
                     subjectMarks = examSubjects.map { subject ->
                         ExamSubjectMark(
                             subjectId = subject.id,
@@ -82,7 +88,27 @@ object ExamHistory {
                             isAbsent = marksBySubject[subject.id]?.isAbsent == true,
                         )
                     },
+                    rank = rankOf(result, classmates, examSubjects, classMarks),
                 )
             }
+    }
+
+    /** `1 + count(greater totals)` — the same competition rank the export prints. */
+    private fun rankOf(
+        result: StudentResult,
+        classmates: List<Student>,
+        subjects: List<ExamSubject>,
+        marks: List<ExamMark>,
+    ): Int? {
+        val recorded = result.marksBySubject.isNotEmpty() || result.absentSubjectIds.isNotEmpty()
+        if (!recorded) return null
+        val totals = classmates.map { classmate ->
+            ResultCalculator.calculate(
+                classmate,
+                subjects,
+                marks.filter { it.studentId == classmate.id },
+            ).totalObtained
+        }
+        return 1 + totals.count { it > result.totalObtained }
     }
 }

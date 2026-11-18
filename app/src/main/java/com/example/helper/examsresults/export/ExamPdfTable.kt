@@ -79,7 +79,6 @@ internal object ExamPdfTableBuilder {
     private const val S_NO = "S.No."
     private const val ROLL = "Roll No."
     private const val NAME = "Student Name"
-    private const val MAX_MARKS = "/Max.Marks"
 
     fun build(
         subjects: List<ExamSubject>,
@@ -103,7 +102,7 @@ internal object ExamPdfTableBuilder {
             )
         }
 
-        val subHeaders = mutableListOf("", "", MAX_MARKS)
+        val subHeaders = mutableListOf("", "", "")
         subjects.forEach { subject -> subHeaders.add(subject.maxMarks.toString()) }
         printable.forEach { subHeaders.add("") }
 

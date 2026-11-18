@@ -43,7 +43,9 @@ class ExamHistoryTest {
             mark(examId = "e2", subjectId = "s2", obtained = 20.0),
         )
 
-        val entries = ExamHistory.build(listOf(older, newer), subjects, marks, student)
+        val entries = ExamHistory.build(
+            listOf(older, newer), subjects, marks, student, listOf(student),
+        )
 
         assertEquals(listOf("Midterm", "Unit test"), entries.map { it.examName })
         assertEquals(110.0, entries[0].result.totalObtained, 0.001)
@@ -60,7 +62,9 @@ class ExamHistoryTest {
         val exam = exam(id = "e1", name = "Midterm", date = 1_000L)
         val subject = subject(id = "m1", examId = "e1", name = "Math", max = 100, pass = 35)
 
-        val entry = ExamHistory.build(listOf(exam), listOf(subject), emptyList(), student).single()
+        val entry = ExamHistory.build(
+            listOf(exam), listOf(subject), emptyList(), student, listOf(student),
+        ).single()
 
         assertFalse(entry.hasMarks)
         assertEquals(ExamHistoryStatus.NOT_ENTERED, entry.status)
@@ -84,10 +88,61 @@ class ExamHistoryTest {
             mark(examId = "e2", subjectId = "m2", obtained = 70.0),
         )
 
-        val entries = ExamHistory.build(listOf(first, second), subjects, marks, student)
+        val entries = ExamHistory.build(
+            listOf(first, second), subjects, marks, student, listOf(student, otherStudent()),
+        )
 
         assertEquals(listOf(70.0, 80.0), entries.map { it.subjectMarks.single().obtained })
         assertTrue(entries.all { it.failedSubjectNames.isEmpty() })
+    }
+
+    @Test
+    fun `rank shares a place on ties and skips the next place`() {
+        val exam = exam(id = "e1", name = "Midterm", date = 1_000L)
+        val subject = subject(id = "m1", examId = "e1", name = "Math", max = 100, pass = 35)
+        val classmates = listOf(student, otherStudent("s2"), otherStudent("s3"), otherStudent("s4"))
+        val marks = listOf(
+            mark(examId = "e1", subjectId = "m1", obtained = 80.0),
+            mark(examId = "e1", subjectId = "m1", obtained = 90.0, studentId = "s2"),
+            mark(examId = "e1", subjectId = "m1", obtained = 80.0, studentId = "s3"),
+            mark(examId = "e1", subjectId = "m1", obtained = 60.0, studentId = "s4"),
+        )
+
+        val entry = ExamHistory.build(
+            listOf(exam), listOf(subject), marks, student, classmates,
+        ).single()
+
+        // 90 leads; the two 80s share second; 60 drops to fourth.
+        assertEquals(2, entry.rank)
+    }
+
+    @Test
+    fun `rank is per exam and absent when nothing is recorded`() {
+        val first = exam(id = "e1", name = "Unit test", date = 1_000L)
+        val second = exam(id = "e2", name = "Midterm", date = 2_000L)
+        val subjects = listOf(
+            subject(id = "m1", examId = "e1", name = "Math", max = 100, pass = 35),
+            subject(id = "m2", examId = "e2", name = "Math", max = 100, pass = 35),
+        )
+        val other = otherStudent("s2")
+        val marks = listOf(
+            mark(examId = "e1", subjectId = "m1", obtained = 80.0),
+            mark(examId = "e1", subjectId = "m1", obtained = 90.0, studentId = other.id),
+            mark(examId = "e2", subjectId = "m2", obtained = 100.0),
+            mark(examId = "e2", subjectId = "m2", obtained = 50.0, studentId = other.id),
+        )
+
+        val entries = ExamHistory.build(
+            listOf(first, second), subjects, marks, student, listOf(student, other),
+        )
+
+        assertEquals(1, entries[0].rank)
+        assertEquals(2, entries[1].rank)
+
+        val blank = ExamHistory.build(
+            listOf(first), subjects, emptyList(), student, listOf(student, other),
+        ).single()
+        assertNull(blank.rank)
     }
 
     private fun exam(id: String, name: String, date: Long) = Exam(
@@ -98,6 +153,8 @@ class ExamHistoryTest {
         createdAt = date,
         updatedAt = date,
     )
+
+    private fun otherStudent(id: String = "s2") = student.copy(id = id, name = "Other")
 
     private fun subject(id: String, examId: String, name: String, max: Int, pass: Int) =
         ExamSubject(

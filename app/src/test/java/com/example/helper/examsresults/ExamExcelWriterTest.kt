@@ -473,6 +473,21 @@ class ExamExcelWriterTest {
     }
 
     @Test
+    fun `the name header spans both header rows without a max marks label`() {
+        val all = entries(workbook())
+        val shared = all["xl/sharedStrings.xml"].orEmpty()
+        val sheet = all["xl/worksheets/sheet1.xml"].orEmpty()
+
+        assertTrue("the name header is still there", shared.contains("Student Name"))
+        assertFalse("no /Max.Marks label under the name", shared.contains("/Max.Marks"))
+        assertTrue(
+            "the name header spans both rows",
+            Regex("""<mergeCell[^>]*ref="C5:C6""").containsMatchIn(sheet),
+        )
+        assertTrue("subject maxima stay on row six", sheet.contains("""<c r="D6""""))
+    }
+
+    @Test
     fun `rank uses the whole student range and follows ties`() {
         val other = result.copy(
             student = result.student.copy(id = "s2", name = "Ravi", rollNumber = "2"),

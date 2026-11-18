@@ -138,7 +138,8 @@ private fun ExamHistoryCard(entry: ExamHistoryEntry) {
                     text = "Total: ${formatMark(entry.result.totalObtained)}/" +
                         "${formatMark(entry.result.totalMax)}  ·  " +
                         "${formatPercentage(entry.result.percentage)}  ·  " +
-                        entry.status.label(),
+                        entry.status.label() +
+                        entry.rank?.let { "  ·  Rank $it" }.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = statusColor,
                 )
