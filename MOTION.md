@@ -127,8 +127,10 @@ source are inside `HyprMotion.kt`; no other file holds an animation duration.
 ### Post-audit fix: predictive back (2026-11-19)
 
 The four-transition `NavHost` overload left `predictivePopExitTransition` at the library default
-`scaleOut(0.7f)` (≈49% area), so Android 16 gesture and 3-button back collapsed all corners to half
-size while the in-app arrow correctly used `HyprMotion.popinOut`'s `scaleOut(0.87f)` + fade. Both
-predictive lambdas in `nav/AppNavHost.kt` now delegate to `MotionNav.popEnter`/`popExit`, the same
-specs as the non-predictive path. Full evidence, the runtime table and the regression check are in
-`BUGHUNT.md`. Debug-only `MotionDiag` tracing remains behind `BuildConfig.DEBUG` as the guard.
+`scaleOut(0.7f)` (≈49% area), so Android 16 gesture back collapsed all corners to half size while
+the in-app arrow correctly used `HyprMotion.popinOut`'s `scaleOut(0.87f)` + fade. Both predictive
+lambdas in `nav/AppNavHost.kt` now delegate to `MotionNav.popEnter`/`popExit`, the same specs as the
+non-predictive path. 3-button back takes the non-predictive path and was not captured on device; its
+collapse cause stays unverified until a tap row is classified. Full evidence, the runtime table and
+the regression check are in `BUGHUNT.md`. Debug-only `MotionDiag` tracing remains behind
+`BuildConfig.DEBUG` as the guard.
