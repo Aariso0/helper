@@ -4,7 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import com.example.helper.BuildConfig
 
 /**
  * A full-screen compose flow (homework draft, announcement draft) layered over
@@ -23,6 +25,11 @@ fun ScreenTakeover(
     overlay: @Composable () -> Unit,
 ) {
     val reduceMotion = LocalReduceMotion.current
+    LaunchedEffect(visible) {
+        if (BuildConfig.DEBUG) {
+            MotionDiag.local("TAKEOVER_VISIBILITY_CHANGED", "visible=$visible")
+        }
+    }
     Box(modifier = modifier.fillMaxSize()) {
         base()
         AnimatedVisibility(

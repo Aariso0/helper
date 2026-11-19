@@ -56,8 +56,10 @@ import com.example.helper.coredata.entity.AttendanceStatus
 import com.example.helper.coredata.entity.Student
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
+import com.example.helper.BuildConfig
 import com.example.helper.motion.HyprMotion
 import com.example.helper.motion.LocalReduceMotion
+import com.example.helper.motion.MotionDiag
 import com.example.helper.motion.hyprAnimateItem
 import com.example.helper.share.shareText
 import com.example.helper.theme.ShellDimens
@@ -318,6 +320,9 @@ private fun RollingNumber(value: Int, color: Color, label: String) {
     AnimatedContent(
         targetState = value,
         transitionSpec = {
+            if (BuildConfig.DEBUG) {
+                MotionDiag.local("COUNTER_ANIM", label)
+            }
             (HyprMotion.workspaceIn(reduceMotion) togetherWith HyprMotion.workspaceOut(reduceMotion))
                 .using(null)
         },

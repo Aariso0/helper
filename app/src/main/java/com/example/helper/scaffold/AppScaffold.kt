@@ -20,6 +20,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -28,12 +29,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.IntSize
 import androidx.navigation.compose.rememberNavController
+import com.example.helper.BuildConfig
 import com.example.helper.nav.AppNavHost
 import com.example.helper.nav.Routes
 import com.example.helper.nav.navigateToTab
 import com.example.helper.nav.rememberNavThrottle
 import com.example.helper.motion.HyprMotion
 import com.example.helper.motion.LocalReduceMotion
+import com.example.helper.motion.MotionDiag
 
 /** Exactly the four README tabs — no settings, no profile, no extras (rule 3). */
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -58,6 +61,12 @@ fun AppScaffold() {
     val currentRoute = backStackEntry?.destination?.route
     val throttle = rememberNavThrottle(350L)
     val reduceMotion = LocalReduceMotion.current
+    val barVisible = Routes.isTabRoot(currentRoute)
+    LaunchedEffect(barVisible) {
+        if (BuildConfig.DEBUG) {
+            MotionDiag.local("BAR_VISIBILITY_CHANGED", "visible=$barVisible route=$currentRoute")
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -66,7 +75,7 @@ fun AppScaffold() {
             // down and shrinks away (anchored to the screen bottom) so the
             // content padding animates with it — no hard cut, no layout jump.
             AnimatedVisibility(
-                visible = Routes.isTabRoot(currentRoute),
+                visible = barVisible,
                 enter = slideInVertically(HyprMotion.layersInSpec(reduceMotion)) { it } +
                     expandVertically(
                         HyprMotion.easySpring<IntSize>(reduce = reduceMotion),

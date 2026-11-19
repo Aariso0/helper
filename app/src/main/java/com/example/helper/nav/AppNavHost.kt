@@ -3,17 +3,20 @@ package com.example.helper.nav
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.helper.BuildConfig
 import com.example.helper.attendance.ui.AttendanceScreen
 import com.example.helper.exportbackup.ui.ExportScreen
 import com.example.helper.examsresults.examListViewModel
@@ -30,6 +33,7 @@ import com.example.helper.examsresults.ui.MarkEntryScreen
 import com.example.helper.examsresults.exportColumnsViewModel
 import com.example.helper.homework.ui.HomeworkScreen
 import com.example.helper.motion.LocalReduceMotion
+import com.example.helper.motion.MotionDiag
 import com.example.helper.motion.MotionNav
 import com.example.helper.motion.SharedMotionHost
 import com.example.helper.parents.ui.ParentsScreen
@@ -55,21 +59,80 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
 ) {
     val reduceMotion = LocalReduceMotion.current
+
+    // Debug-only back-transition tracing. A plain holder, not Compose State, so
+    // reading it from a transition lambda cannot trigger recomposition.
+    val diagClock = remember { MotionDiag.Clock() }
+    val diagListener = remember(navController) {
+        NavController.OnDestinationChangedListener { controller, destination, _ ->
+            if (BuildConfig.DEBUG) {
+                MotionDiag.destinationChanged(
+                    controller,
+                    diagClock,
+                    destination.route ?: "<none>",
+                )
+            }
+        }
+    }
+    DisposableEffect(navController, diagListener) {
+        navController.addOnDestinationChangedListener(diagListener)
+        onDispose { navController.removeOnDestinationChangedListener(diagListener) }
+    }
+
     SharedMotionHost {
         NavHost(
             navController = navController,
             startDestination = Routes.TODAY,
             modifier = modifier,
             enterTransition = {
+                if (BuildConfig.DEBUG) {
+                    MotionDiag.transition("ENTER", diagClock, initialState, targetState)
+                }
                 MotionNav.enter(this, initialState, targetState, reduceMotion)
             },
             exitTransition = {
+                if (BuildConfig.DEBUG) {
+                    MotionDiag.transition("EXIT", diagClock, initialState, targetState)
+                }
                 MotionNav.exit(this, initialState, targetState, reduceMotion)
             },
             popEnterTransition = {
+                if (BuildConfig.DEBUG) {
+                    MotionDiag.transition("POP_ENTER", diagClock, initialState, targetState)
+                }
                 MotionNav.popEnter(this, initialState, targetState, reduceMotion)
             },
             popExitTransition = {
+                if (BuildConfig.DEBUG) {
+                    MotionDiag.transition("POP_EXIT", diagClock, initialState, targetState)
+                }
+                MotionNav.popExit(this, initialState, targetState, reduceMotion)
+            },
+            // System back (gesture and 3-button) goes through these, not the
+            // pop* lambdas above. Keep them on the same HyprMotion specs so every
+            // way of leaving a screen looks identical.
+            predictivePopEnterTransition = { swipeEdge ->
+                if (BuildConfig.DEBUG) {
+                    MotionDiag.transition(
+                        "PREDICTIVE_POP_ENTER",
+                        diagClock,
+                        initialState,
+                        targetState,
+                        "swipeEdge=$swipeEdge",
+                    )
+                }
+                MotionNav.popEnter(this, initialState, targetState, reduceMotion)
+            },
+            predictivePopExitTransition = { swipeEdge ->
+                if (BuildConfig.DEBUG) {
+                    MotionDiag.transition(
+                        "PREDICTIVE_POP_EXIT",
+                        diagClock,
+                        initialState,
+                        targetState,
+                        "swipeEdge=$swipeEdge spec=HyprMotion",
+                    )
+                }
                 MotionNav.popExit(this, initialState, targetState, reduceMotion)
             },
         ) {

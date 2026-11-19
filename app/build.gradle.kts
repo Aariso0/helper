@@ -133,6 +133,9 @@ android {
 
     buildFeatures {
         compose = true
+        // AGP 9 defaults this to false; the debug-only MotionDiag instrumentation
+        // in the back-animation bug hunt needs BuildConfig.DEBUG.
+        buildConfig = true
     }
 }
 
