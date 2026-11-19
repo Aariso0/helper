@@ -56,7 +56,7 @@ fun Modifier.popOnChange(trigger: Any?, targetScale: Float = 1f): Modifier = com
     LaunchedEffect(trigger) {
         if (trigger == null || trigger == lastTrigger) return@LaunchedEffect
         lastTrigger = trigger
-        scale.snapTo(HyprMotion.POPIN_SCALE)
+        scale.snapTo(if (reduce) targetScale else HyprMotion.POPIN_SCALE)
         scale.animateTo(targetScale, HyprMotion.fadeSpec(reduce))
     }
     graphicsLayer {
