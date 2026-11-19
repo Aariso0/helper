@@ -127,7 +127,11 @@ Everything stays on the classpath the project already has. Third-party animation
   1. Shared elements (student photo/name) if needed, or skip if blocked by scope.
   2. QA per script (animator scale 0/0.5/2, RTL, rapid taps, predictive back).
 - **Blocked on:** none.
-- **Last checkpoint:** 2026-10-27T02:25:00+05:30
+- **Last checkpoint:** 2026-11-19T09:41:00+05:30 — predictive pop transitions now delegate to
+  `MotionNav.popEnter`/`popExit` instead of Navigation-Compose's `scaleOut(0.7f)` default; debug-only
+  `MotionDiag` tracing added as the regression guard. Android 16 device capture confirms
+  `PREDICTIVE_POP_EXIT ... spec=HyprMotion`; compile, assemble and unit tests green. Details in
+  `BUGHUNT.md`.
 
 
 
