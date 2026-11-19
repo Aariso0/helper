@@ -1,6 +1,10 @@
 package com.example.helper.motion
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.EnterTransition
@@ -23,6 +27,8 @@ import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
@@ -49,19 +55,30 @@ val LocalReduceMotion = compositionLocalOf { false }
 @Composable
 fun ProvideHyprMotion(content: @Composable () -> Unit) {
     val context = LocalContext.current
-    val reduce = remember(context) {
-        runCatching {
-            Settings.Global.getFloat(
-                context.contentResolver,
-                Settings.Global.ANIMATOR_DURATION_SCALE,
-                1f,
-            )
-        }.getOrDefault(1f) == 0f
+    val initialReduce = remember(context) { readReduceMotion(context) }
+    val reduce by produceState(initialValue = initialReduce, context) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                value = readReduceMotion(context)
+            }
+        }
+        val uri = Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE)
+        context.contentResolver.registerContentObserver(uri, false, observer)
+        awaitDispose { context.contentResolver.unregisterContentObserver(observer) }
     }
     CompositionLocalProvider(LocalReduceMotion provides reduce) {
         content()
     }
 }
+
+private fun readReduceMotion(context: Context): Boolean =
+    runCatching {
+        Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        )
+    }.getOrDefault(1f) == 0f
 
 /**
  * The app's single source of animation specs: Hyprland's leaves, curves, springs

@@ -139,7 +139,7 @@ are PDF writer methods, not Activity back handling (false positives).
 | `stateIn(... WhileSubscribed(5_000))` | ~15 ViewModels, e.g. `today/TodayViewModel.kt:119-121`, `homework/viewmodel/HomeworkViewModel.kt:111-113`, `roster/viewmodel/StudentPageViewModel.kt:84`, `parents/viewmodel/ParentsViewModel.kt:103-105`. These stop/restart data flows 5 s after the view stops; they do not touch transitions or back handling |
 | Session/auto-refresh/auto-save ticker | **not present**. `LocalDate.now()` occurrences (e.g. `today/TodayViewModel.kt:32`, `nav/AppNavHost.kt:228,233`) change at midnight only |
 | `System.currentTimeMillis()` | All are timestamps for DB rows / filenames / click throttles (`nav/NavThrottle.kt:14`, `motion/Throttle.kt:14`, repositories) — none gates animation |
-| `Settings.Global.ANIMATOR_DURATION_SCALE` | `motion/HyprMotion.kt:52-60` — **read once** in `ProvideHyprMotion`'s `remember(context)`; never observed. Would be time-*independent*, but could explain a state-derived "reduced" path; `MotionDiag` will not log this unless asked — see §7 suspect 4 |
+| `Settings.Global.ANIMATOR_DURATION_SCALE` | Was **read once** in `ProvideHyprMotion`'s `remember(context)` at audit time — time-*independent*, so could not explain the reported large shrink. Now observed via a `ContentObserver` (see `motion/HyprMotion.kt`); `MotionDiag` does not log it — see §9 suspect 3 |
 
 **Conclusion:** there is no code in this app that changes a back animation as a function of time-on-screen.
 The time correlation must come from input method / gesture lifecycle / transition settling, not a timer.
@@ -341,9 +341,9 @@ check at 2034 ms and 3357 ms covers the reported "about 2 seconds" threshold.
    both must show the HyprMotion spec.
 3. **Lock/unlock and long waits** (10 s–15 min) — not captured. No code path found that would make
    them differ (§4.2), but not empirically ruled out.
-4. **Reduce-motion state** — `ANIMATOR_DURATION_SCALE` is read once at `HyprMotion.kt:52-60`; not
-   checked on the device. It would remove the shrink entirely, so it cannot explain the reported
-   large collapse. Check with `adb shell settings get global animator_duration_scale` if desired.
+4. **Reduce-motion state** — not checked on the device. It would remove the shrink entirely, so it
+   cannot explain the reported large collapse. The setting is now observed live in `HyprMotion.kt`;
+   check with `adb shell settings get global animator_duration_scale` if desired.
 5. **3-button and in-app-arrow post-fix rows** — only gesture backs were captured after the fix;
    both now share the same `MotionNav` spec by construction, but neither was logged on device.
 
@@ -354,8 +354,8 @@ check at 2034 ms and 3357 ms covers the reported "about 2 seconds" threshold.
    Confirm/resolve with the 100/500/1000/2000 ms rows after the fix.
 2. **Input-method mix** — real, but now harmless: both predictive and non-predictive lambdas call
    `MotionNav`, so gesture, 3-button and in-app arrow share one spec.
-3. **Reduce-motion state** — `ANIMATOR_DURATION_SCALE == 0` at `HyprMotion.kt:52-60` would give
-   `ExitTransition.None`, not a large shrink. Ruled out by the symptom.
+3. **Reduce-motion state** — `ANIMATOR_DURATION_SCALE == 0` gives `ExitTransition.None`, not a
+   large shrink. Ruled out by the symptom.
 4. **A `BackHandler` consuming back** — `HomeworkEdit.kt:121`, `AnnouncementEdit.kt:87`,
    `ClassListScreen.kt:90`, `ExportScreen.kt:423`. The reported screens are ordinary detail routes
    with none of these; static audit §4.1 found no time-dependent enablement.

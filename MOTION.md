@@ -105,9 +105,10 @@ while empty, so an enter transition would never run. It stays as-is.
 
 All app-controlled specs now live in `motion/HyprMotion.kt`; the old `motion/Motion.kt` token
 object is deleted. `SPEED_SCALE` stays at `1.0f` (exact Hyprland timings) — no device feel
-evidence to justify `0.85f`. `ProvideHyprMotion` reads `ANIMATOR_DURATION_SCALE` once at the
+evidence to justify `0.85f`. `ProvideHyprMotion` observes `ANIMATOR_DURATION_SCALE` at the
 composition root and maps `0` to `LocalReduceMotion = true`; every transition and effect
-honours it via a `reduce` flag (specs collapse to `snap`/`None`).
+honours it via a `reduce` flag (specs collapse to `snap`/`None`). A `ContentObserver` keeps the
+value live when the system setting changes.
 
 `hyprAnimateItem()` is a `LazyItemScope` extension (matching `Modifier.animateItem`'s scope),
 applied to every keyed list: homework, announcements, contacts, attendance, students, classes,
