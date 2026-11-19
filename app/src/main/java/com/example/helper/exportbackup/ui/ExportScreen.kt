@@ -60,6 +60,7 @@ import com.example.helper.exportbackup.viewmodel.RestoreOutcome
 import com.example.helper.exportbackup.viewmodel.RestorePreview
 import com.example.helper.exportbackup.viewmodel.Work
 import com.example.helper.exportbackup.viewmodel.exportViewModel
+import com.example.helper.motion.hyprAnimateItem
 import com.example.helper.roster.picker.ClassPicker
 import com.example.helper.theme.ShellDimens
 import kotlinx.coroutines.delay
@@ -207,7 +208,7 @@ fun ExportScreen(onBack: () -> Unit) {
                     else -> {
                         item { OverallSummaryCard(summary) }
                         items(summary.classes, key = { it.classId }) { classSummary ->
-                            ClassSummaryCard(classSummary)
+                            ClassSummaryCard(classSummary, modifier = hyprAnimateItem())
                         }
                     }
                 }

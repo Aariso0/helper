@@ -1,5 +1,6 @@
 package com.example.helper.motion
 
+import android.annotation.SuppressLint
 import android.provider.Settings
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.EnterTransition
@@ -227,7 +228,14 @@ object HyprMotion {
     }
 }
 
-/** One line per keyed LazyColumn item: placement = windowsMove, fades = layers. */
+/**
+ * One line per keyed LazyColumn item: placement = windowsMove, fades = layers.
+ *
+ * `LazyItemScope.animateItem` is a member extension of the item scope, so this
+ * helper must carry that receiver too — a plain `Modifier` extension cannot
+ * reach it. Hence the narrow lint suppression.
+ */
+@SuppressLint("ModifierFactoryExtensionFunction")
 @Composable
 fun LazyItemScope.hyprAnimateItem(): Modifier {
     val reduce = LocalReduceMotion.current

@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.helper.coredata.entity.Student
+import com.example.helper.motion.hyprAnimateItem
 import com.example.helper.roster.viewmodel.pickerViewModel
 
 /**
@@ -69,7 +70,7 @@ fun StudentPicker(
             LazyColumn {
                 items(students, key = { it.id }) { student ->
                     Row(
-                        modifier = Modifier
+                        modifier = hyprAnimateItem()
                             .fillMaxWidth()
                             .clickable { onPick(student) }
                             .padding(vertical = 12.dp),

@@ -70,8 +70,11 @@ than silently ignored.
 | `attendance/AttendanceScreen.kt` | 376 | `DatePickerDialog` | platform dialog window | windowsIn/out |
 | `homework/ui/HomeworkEdit.kt` | 351 | `DatePickerDialog` | platform dialog window | windowsIn/out |
 
-The one **plain** `Dialog` (`ExportScreen.kt:135`) is app-controlled and will be wrapped with
-`HyprMotion` popin + delayed dismiss.
+The plain `Dialog` (`ExportScreen.kt:135`) uses the same platform window animation as
+`AlertDialog`: its content is app-owned but the window transition is not spec-injectable.
+It is a non-dismissible progress dialog (`onDismissRequest = {}`), so wrapping its content in
+`AnimatedVisibility` would animate on enter only and double up with the platform window
+animation. It is left as library-owned, like the dialogs above.
 
 ## Missing animation (no animation today)
 
@@ -95,5 +98,27 @@ while empty, so an enter transition would never run. It stays as-is.
 
 1. `HyprMotion` foundation + reduce-motion provider → build.
 2. NavHost + takeover + bottom bar → build.
-3. Effects, lists, shared bounds, plain dialog → build.
+3. Effects, lists, shared bounds → build.
 4. Cleanup grep + `assembleDebug`, `lint`, unit tests.
+
+## Resolution
+
+All app-controlled specs now live in `motion/HyprMotion.kt`; the old `motion/Motion.kt` token
+object is deleted. `SPEED_SCALE` stays at `1.0f` (exact Hyprland timings) — no device feel
+evidence to justify `0.85f`. `ProvideHyprMotion` reads `ANIMATOR_DURATION_SCALE` once at the
+composition root and maps `0` to `LocalReduceMotion = true`; every transition and effect
+honours it via a `reduce` flag (specs collapse to `snap`/`None`).
+
+`hyprAnimateItem()` is a `LazyItemScope` extension (matching `Modifier.animateItem`'s scope),
+applied to every keyed list: homework, announcements, contacts, attendance, students, classes,
+exams, feedback notes, pickers, mark entry and export summaries. `TodayScreen`, `HomeworkEdit`
+and `AnnouncementEdit` loading→content swaps have no `AnimatedContent` and were left alone —
+adding one would be new behaviour, not replacing an existing animation.
+
+Library-owned animations (Material3 dialogs, menus, snackbars, `ModalBottomSheet`, platform
+dialogs, `DatePickerDialog`) remain unchanged: Material3 1.4.0 keeps `MotionScheme` and
+`BasicAlertDialogOverride` internal, so there is no public spec-injection point. No dependency
+was added and no library component was reimplemented.
+
+Cleanup grep confirms the only `tween`, `spring`, `keyframes` and `durationMillis` in app
+source are inside `HyprMotion.kt`; no other file holds an animation duration.
