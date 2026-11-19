@@ -37,7 +37,7 @@
 
 This is an Android app for a single teacher who wants daily classroom tasks done in fewer taps than an Excel sheet. It covers attendance, student feedback, homework, parent information, roster, exam results, reports and backup, all stored locally on the device.
 
-A local prototype: no login, no sync and no `INTERNET` permission in the manifest. It works fully offline. The source is version 1.3.0; the latest published APK is v1.3.1.
+A local prototype: no login, no sync and no `INTERNET` permission in the manifest. It works fully offline. The source and the latest published APK are version 1.3.3.
 
 > **TODO: add screenshot** — no screenshots or demo GIFs exist in the repo yet. A placeholder directory is reserved at `docs/screenshots/`.
 
@@ -76,7 +76,7 @@ A local prototype: no login, no sync and no `INTERNET` permission in the manifes
 
 ### Install a release APK (recommended)
 
-Download [`helper-v1.3.2.apk`](https://github.com/Aariso0/helper/releases/download/v1.3.2/helper-v1.3.2.apk) from the [latest release](https://github.com/Aariso0/helper/releases/latest) and open the file on an Android device to install it. No JDK, SDK or compilation needed.
+Download [`helper-v1.3.3.apk`](https://github.com/Aariso0/helper/releases/download/v1.3.3/helper-v1.3.3.apk) from the [latest release](https://github.com/Aariso0/helper/releases/latest) and open the file on an Android device to install it. No JDK, SDK or compilation needed.
 
 <details>
 <summary>Build from source instead</summary>
