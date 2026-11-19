@@ -86,7 +86,7 @@ private fun readReduceMotion(context: Context): Boolean =
  * hardcoded animation duration.
  */
 object HyprMotion {
-    /** Global speed multiplier. 1f = exact Hyprland timings. */
+    /** Global duration multiplier for tweens and springs. 1f = exact Hyprland timings. */
     var SPEED_SCALE = 1f
 
     /** Hyprland "speed" is in deciseconds (1.0 = 100 ms). */
@@ -104,9 +104,9 @@ object HyprMotion {
     private val EASY_RATIO = dampingRatio(EASY_STIFFNESS, 15.8273644f)
     private val RUBBER_RATIO = dampingRatio(70f, 10f) // accent only
 
-    /** Settling time of a fixed-ratio spring scales with 1/sqrt(stiffness). */
+    /** Settling time is 1/sqrt(stiffness), so divide to track tween durations. */
     private fun scaledStiffness(stiffness: Float): Float =
-        (stiffness * SPEED_SCALE * SPEED_SCALE).coerceAtLeast(1f)
+        (stiffness / (SPEED_SCALE * SPEED_SCALE)).coerceAtLeast(1f)
 
     private fun <T> spec(speed: Float, easing: Easing, reduce: Boolean): FiniteAnimationSpec<T> =
         if (reduce) snap() else tween(ms(speed), easing = easing)
