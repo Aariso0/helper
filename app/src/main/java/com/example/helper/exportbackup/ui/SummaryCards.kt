@@ -61,8 +61,8 @@ fun OverallSummaryCard(summary: MonthlySummary) {
 }
 
 @Composable
-fun ClassSummaryCard(classSummary: ClassMonthSummary) {
-    Card {
+fun ClassSummaryCard(classSummary: ClassMonthSummary, modifier: Modifier = Modifier) {
+    Card(modifier = modifier) {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
             Row(
                 modifier = Modifier

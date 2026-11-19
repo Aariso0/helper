@@ -55,13 +55,13 @@ import com.example.helper.attendance.viewmodel.attendanceViewModel
 import com.example.helper.coredata.entity.AttendanceStatus
 import com.example.helper.coredata.entity.Student
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import com.example.helper.BuildConfig
+import com.example.helper.motion.HyprMotion
+import com.example.helper.motion.LocalReduceMotion
+import com.example.helper.motion.MotionDiag
+import com.example.helper.motion.hyprAnimateItem
 import com.example.helper.share.shareText
-import com.example.helper.motion.Motion
 import com.example.helper.theme.ShellDimens
 import java.time.Instant
 import java.time.LocalDate
@@ -272,6 +272,7 @@ fun AttendanceScreen(
                             }
                         },
                         onLongClick = { statusSheetStudent = student },
+                        modifier = hyprAnimateItem(),
                     )
                     if (index < visibleStudents.lastIndex) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
@@ -309,21 +310,21 @@ private fun CounterLabel(text: String, color: Color) {
 }
 
 /**
- * The new value slides up into place while the old one leaves upward, so the
- * change reads as a roll rather than a jump. The value is the content identity
- * (no custom `contentKey`): two different numbers must never share a slot.
+ * Peer swap of two counter values: both sides use the workspaces fade (121 ms
+ * in, 194 ms out). The value is the content identity (no custom `contentKey`):
+ * two different numbers must never share a slot.
  */
 @Composable
 private fun RollingNumber(value: Int, color: Color, label: String) {
+    val reduceMotion = LocalReduceMotion.current
     AnimatedContent(
         targetState = value,
         transitionSpec = {
-            (slideInVertically(Motion.Spatial.FastOffset) { height -> height } +
-                fadeIn(Motion.Effects.Fast))
-                .togetherWith(
-                    slideOutVertically(Motion.Spatial.FastOffset) { height -> -height } +
-                        fadeOut(Motion.Effects.Fast),
-                )
+            if (BuildConfig.DEBUG) {
+                MotionDiag.local("COUNTER_ANIM", label)
+            }
+            (HyprMotion.workspaceIn(reduceMotion) togetherWith HyprMotion.workspaceOut(reduceMotion))
+                .using(null)
         },
         contentAlignment = Alignment.Center,
         label = label,

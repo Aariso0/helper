@@ -61,6 +61,7 @@ import coil3.compose.AsyncImage
 import com.example.helper.R
 import com.example.helper.coredata.entity.Student
 import com.example.helper.motion.MotionKeys
+import com.example.helper.motion.hyprAnimateItem
 import com.example.helper.motion.pressScale
 import com.example.helper.motion.sharedBoundsIfPossible
 import com.example.helper.motion.sharedElementIfPossible
@@ -186,6 +187,7 @@ fun StudentListScreen(
                             onClick = { onOpenStudent(student.id) },
                             onDelete = { studentBeingDeleted = student },
                             sharedScope = sharedScope,
+                            modifier = hyprAnimateItem(),
                         )
                     }
                     item { Spacer(Modifier.height(72.dp)) }
@@ -235,12 +237,13 @@ private fun StudentRow(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     sharedScope: AnimatedVisibilityScope? = null,
+    modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,

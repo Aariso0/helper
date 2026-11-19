@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import com.example.helper.coredata.entity.ExamSubject
 import com.example.helper.coredata.entity.Student
 import com.example.helper.examsresults.viewmodel.MarkEntryViewModel
+import com.example.helper.motion.hyprAnimateItem
 import kotlinx.coroutines.launch
 
 /**
@@ -177,6 +178,7 @@ fun MarkEntryScreen(
                         onSave = { viewModel.saveMark(student.id) },
                         onToggleAbsent = { viewModel.toggleAbsent(student.id) },
                         onFocused = { focusedStudentId = student.id },
+                        modifier = hyprAnimateItem(),
                     )
                     HorizontalDivider()
                 }
@@ -204,6 +206,7 @@ private fun StudentMarkRow(
     onSave: () -> Unit,
     onToggleAbsent: () -> Unit,
     onFocused: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val bringIntoView = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
@@ -211,7 +214,7 @@ private fun StudentMarkRow(
     val outOfRange = value.toDoubleOrNull()?.let { subject != null && it > subject.maxMarks } == true
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .bringIntoViewRequester(bringIntoView)
             .padding(horizontal = 16.dp, vertical = 10.dp),

@@ -47,8 +47,8 @@ import com.example.helper.homework.viewmodel.HomeworkListViewModel
 import com.example.helper.homework.viewmodel.SharePayload
 import com.example.helper.homework.viewmodel.homeworkListViewModel
 import com.example.helper.homework.viewmodel.homeworkEditViewModel
-import com.example.helper.motion.Motion
 import com.example.helper.motion.ScreenTakeover
+import com.example.helper.motion.hyprAnimateItem
 import com.example.helper.scaffold.SessionMenu
 import com.example.helper.share.asShareableUri
 import com.example.helper.share.shareFiles
@@ -136,11 +136,7 @@ fun HomeworkScreen(
                                     item = item,
                                     // Marking done moves the row to another
                                     // section; animateItem makes it travel.
-                                    modifier = Modifier.animateItem(
-                                        placementSpec = Motion.Spatial.DefaultOffset,
-                                        fadeInSpec = Motion.Effects.Fast,
-                                        fadeOutSpec = Motion.Effects.Fast,
-                                    ),
+                                    modifier = hyprAnimateItem(),
                                     onClick = {
                                         val payload = listViewModel.sharePayloadFor(item, section.className)
                                         if (!sharePayload(context, payload)) {

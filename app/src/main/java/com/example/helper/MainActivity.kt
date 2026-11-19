@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.example.helper.motion.ProvideHyprMotion
 import com.example.helper.scaffold.AppScaffold
 import com.example.helper.theme.HelperTheme
 
@@ -15,7 +16,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             HelperTheme {
-                AppScaffold()
+                ProvideHyprMotion {
+                    AppScaffold()
+                }
             }
         }
     }

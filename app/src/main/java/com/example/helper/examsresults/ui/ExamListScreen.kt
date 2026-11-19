@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.helper.examsresults.viewmodel.ExamListViewModel
 import com.example.helper.examsresults.viewmodel.ExamWithClass
+import com.example.helper.motion.hyprAnimateItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -82,11 +83,12 @@ fun ExamListScreen(
                 .padding(innerPadding),
             contentPadding = PaddingValues(bottom = 80.dp),
         ) {
-            items(state.exams) { examWithClass ->
+            items(state.exams, key = { it.exam.id }) { examWithClass ->
                 ExamRow(
                     examWithClass = examWithClass,
                     onClick = { onOpenExam(examWithClass.exam.id, examWithClass.exam.classId) },
                     onDelete = { examBeingDeleted = examWithClass },
+                    modifier = hyprAnimateItem(),
                 )
                 HorizontalDivider()
             }
@@ -138,11 +140,12 @@ private fun ExamRow(
     examWithClass: ExamWithClass,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,

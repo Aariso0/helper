@@ -54,8 +54,8 @@ android {
         applicationId = "com.example.helper"
         minSdk = 24
         targetSdk = 37
-        versionCode = 5
-        versionName = "1.3.0"
+        versionCode = 6
+        versionName = "1.3.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -133,6 +133,9 @@ android {
 
     buildFeatures {
         compose = true
+        // AGP 9 defaults this to false; the debug-only MotionDiag instrumentation
+        // in the back-animation bug hunt needs BuildConfig.DEBUG.
+        buildConfig = true
     }
 }
 

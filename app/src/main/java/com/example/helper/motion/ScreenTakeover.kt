@@ -1,20 +1,18 @@
 package com.example.helper.motion
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import com.example.helper.BuildConfig
 
 /**
  * A full-screen compose flow (homework draft, announcement draft) layered over
- * the list it was started from. It slides in from the right like a pushed
- * route and slides back out to the right on close — a left-to-right back —
- * while the list underneath stays composed, so its scroll position survives.
+ * the list it was started from. It pops in like a pushed window and shrinks
+ * away on close, while the list underneath stays composed so its scroll
+ * position survives.
  *
  * The list is not a nav destination, so NavHost's own push/pop transitions
  * cannot cover it; this is the local equivalent for those in-screen takeovers.
@@ -26,14 +24,18 @@ fun ScreenTakeover(
     base: @Composable () -> Unit,
     overlay: @Composable () -> Unit,
 ) {
+    val reduceMotion = LocalReduceMotion.current
+    LaunchedEffect(visible) {
+        if (BuildConfig.DEBUG) {
+            MotionDiag.local("TAKEOVER_VISIBILITY_CHANGED", "visible=$visible")
+        }
+    }
     Box(modifier = modifier.fillMaxSize()) {
         base()
         AnimatedVisibility(
             visible = visible,
-            enter = slideInHorizontally(Motion.Spatial.FastOffset) { fullWidth -> fullWidth } +
-                fadeIn(Motion.Effects.Fast),
-            exit = slideOutHorizontally(Motion.Spatial.FastOffset) { fullWidth -> fullWidth } +
-                fadeOut(Motion.Effects.Fast),
+            enter = HyprMotion.popinIn(reduceMotion),
+            exit = HyprMotion.popinOut(reduceMotion),
         ) {
             overlay()
         }
