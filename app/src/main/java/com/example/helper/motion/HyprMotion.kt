@@ -169,65 +169,46 @@ object HyprMotion {
     const val POPIN_SCALE = 0.87f
     const val SLIDEFADE_FRACTION = 0.20f
 
-    // ---- Ready-made transitions. All read LocalReduceMotion. ----
+    // ---- Ready-made transitions. The caller passes the reduce-motion flag so
+    // ---- non-composable hosts (NavHost transition lambdas) can use them too.
 
     /** windowsIn: popin 87% + fade. */
-    val popinIn: EnterTransition
-        @Composable get() {
-            val reduce = LocalReduceMotion.current
-            if (reduce) return EnterTransition.None
-            return scaleIn(windowsInSpec(reduce), initialScale = POPIN_SCALE) +
-                fadeIn(fadeInSpec(reduce))
-        }
+    fun popinIn(reduce: Boolean = false): EnterTransition {
+        if (reduce) return EnterTransition.None
+        return scaleIn(windowsInSpec(reduce), initialScale = POPIN_SCALE) +
+            fadeIn(fadeInSpec(reduce))
+    }
 
     /** windowsOut: popin 87% reversed, fast and linear. */
-    val popinOut: ExitTransition
-        @Composable get() {
-            val reduce = LocalReduceMotion.current
-            if (reduce) return ExitTransition.None
-            return scaleOut(windowsOutSpec(reduce), targetScale = POPIN_SCALE) +
-                fadeOut(fadeOutSpec(reduce))
-        }
+    fun popinOut(reduce: Boolean = false): ExitTransition {
+        if (reduce) return ExitTransition.None
+        return scaleOut(windowsOutSpec(reduce), targetScale = POPIN_SCALE) +
+            fadeOut(fadeOutSpec(reduce))
+    }
 
     /** layersIn / layersOut: pure fade (menus, popups, scrims). */
-    val layerIn: EnterTransition
-        @Composable get() {
-            val reduce = LocalReduceMotion.current
-            return if (reduce) EnterTransition.None else fadeIn(layersInSpec(reduce))
-        }
+    fun layerIn(reduce: Boolean = false): EnterTransition =
+        if (reduce) EnterTransition.None else fadeIn(layersInSpec(reduce))
 
-    val layerOut: ExitTransition
-        @Composable get() {
-            val reduce = LocalReduceMotion.current
-            return if (reduce) ExitTransition.None else fadeOut(layersOutSpec(reduce))
-        }
+    fun layerOut(reduce: Boolean = false): ExitTransition =
+        if (reduce) ExitTransition.None else fadeOut(layersOutSpec(reduce))
 
     /** workspaces: fade between peers. */
-    val workspaceIn: EnterTransition
-        @Composable get() {
-            val reduce = LocalReduceMotion.current
-            return if (reduce) EnterTransition.None else fadeIn(workspacesInSpec(reduce))
-        }
+    fun workspaceIn(reduce: Boolean = false): EnterTransition =
+        if (reduce) EnterTransition.None else fadeIn(workspacesInSpec(reduce))
 
-    val workspaceOut: ExitTransition
-        @Composable get() {
-            val reduce = LocalReduceMotion.current
-            return if (reduce) ExitTransition.None else fadeOut(workspacesOutSpec(reduce))
-        }
+    fun workspaceOut(reduce: Boolean = false): ExitTransition =
+        if (reduce) ExitTransition.None else fadeOut(workspacesOutSpec(reduce))
 
     /** workspaces slidefade 20%: forward = content moves left. */
-    @Composable
-    fun slideFadeIn(forward: Boolean): EnterTransition {
-        val reduce = LocalReduceMotion.current
+    fun slideFadeIn(forward: Boolean, reduce: Boolean = false): EnterTransition {
         if (reduce) return EnterTransition.None
         return slideInHorizontally(windowsSpec(reduce)) { width ->
             (width * SLIDEFADE_FRACTION).toInt() * if (forward) 1 else -1
         } + fadeIn(workspacesInSpec(reduce))
     }
 
-    @Composable
-    fun slideFadeOut(forward: Boolean): ExitTransition {
-        val reduce = LocalReduceMotion.current
+    fun slideFadeOut(forward: Boolean, reduce: Boolean = false): ExitTransition {
         if (reduce) return ExitTransition.None
         return slideOutHorizontally(windowsSpec(reduce)) { width ->
             (width * SLIDEFADE_FRACTION).toInt() * if (forward) -1 else 1

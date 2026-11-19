@@ -26,12 +26,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.IntSize
 import androidx.navigation.compose.rememberNavController
 import com.example.helper.nav.AppNavHost
 import com.example.helper.nav.Routes
 import com.example.helper.nav.navigateToTab
 import com.example.helper.nav.rememberNavThrottle
-import com.example.helper.motion.Motion
+import com.example.helper.motion.HyprMotion
+import com.example.helper.motion.LocalReduceMotion
 
 /** Exactly the four README tabs — no settings, no profile, no extras (rule 3). */
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -55,6 +57,7 @@ fun AppScaffold() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val throttle = rememberNavThrottle(350L)
+    val reduceMotion = LocalReduceMotion.current
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -64,12 +67,18 @@ fun AppScaffold() {
             // content padding animates with it — no hard cut, no layout jump.
             AnimatedVisibility(
                 visible = Routes.isTabRoot(currentRoute),
-                enter = slideInVertically(Motion.Spatial.FastOffset) { it } +
-                    expandVertically(Motion.Spatial.FastSize, expandFrom = Alignment.Bottom) +
-                    fadeIn(Motion.Effects.Default),
-                exit = slideOutVertically(Motion.Spatial.FastOffset) { it } +
-                    shrinkVertically(Motion.Spatial.FastSize, shrinkTowards = Alignment.Bottom) +
-                    fadeOut(Motion.Effects.Default),
+                enter = slideInVertically(HyprMotion.layersInSpec(reduceMotion)) { it } +
+                    expandVertically(
+                        HyprMotion.easySpring<IntSize>(reduce = reduceMotion),
+                        expandFrom = Alignment.Bottom,
+                    ) +
+                    fadeIn(HyprMotion.layersInSpec(reduceMotion)),
+                exit = slideOutVertically(HyprMotion.layersOutSpec(reduceMotion)) { it } +
+                    shrinkVertically(
+                        HyprMotion.easySpring<IntSize>(reduce = reduceMotion),
+                        shrinkTowards = Alignment.Bottom,
+                    ) +
+                    fadeOut(HyprMotion.layersOutSpec(reduceMotion)),
             ) {
                 NavigationBar {
                     tabs.forEach { tab ->

@@ -29,6 +29,7 @@ import com.example.helper.examsresults.ui.ExportColumnsScreen
 import com.example.helper.examsresults.ui.MarkEntryScreen
 import com.example.helper.examsresults.exportColumnsViewModel
 import com.example.helper.homework.ui.HomeworkScreen
+import com.example.helper.motion.LocalReduceMotion
 import com.example.helper.motion.MotionNav
 import com.example.helper.motion.SharedMotionHost
 import com.example.helper.parents.ui.ParentsScreen
@@ -53,22 +54,23 @@ fun AppNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
+    val reduceMotion = LocalReduceMotion.current
     SharedMotionHost {
         NavHost(
             navController = navController,
             startDestination = Routes.TODAY,
             modifier = modifier,
             enterTransition = {
-                MotionNav.enter(this, initialState, targetState)
+                MotionNav.enter(this, initialState, targetState, reduceMotion)
             },
             exitTransition = {
-                MotionNav.exit(this, initialState, targetState)
+                MotionNav.exit(this, initialState, targetState, reduceMotion)
             },
             popEnterTransition = {
-                MotionNav.popEnter(this, initialState, targetState)
+                MotionNav.popEnter(this, initialState, targetState, reduceMotion)
             },
             popExitTransition = {
-                MotionNav.popExit(this, initialState, targetState)
+                MotionNav.popExit(this, initialState, targetState, reduceMotion)
             },
         ) {
         // ── Bottom-bar tabs ────────────────────────────────────────────────
