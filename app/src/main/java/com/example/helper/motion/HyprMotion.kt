@@ -188,6 +188,7 @@ object HyprMotion {
 
     const val POPIN_SCALE = 0.87f
     const val SLIDEFADE_FRACTION = 0.20f
+    private const val QUICK_SPEED = 2.0f // 0.2 s, for the student-card open
 
     // ---- Ready-made transitions. The caller passes the reduce-motion flag so
     // ---- non-composable hosts (NavHost transition lambdas) can use them too.
@@ -197,6 +198,13 @@ object HyprMotion {
         if (reduce) return EnterTransition.None
         return scaleIn(windowsInSpec(reduce), initialScale = POPIN_SCALE) +
             fadeIn(fadeInSpec(reduce))
+    }
+
+    /** Student-card open: popin 87% + fade, both at 0.2 s. */
+    fun quickPopinIn(reduce: Boolean = false): EnterTransition {
+        if (reduce) return EnterTransition.None
+        return scaleIn(spec(QUICK_SPEED, HyprEasing.EaseOutQuint, reduce), initialScale = POPIN_SCALE) +
+            fadeIn(spec(QUICK_SPEED, HyprEasing.AlmostLinear, reduce))
     }
 
     /** windowsOut: popin 87% reversed, fast and linear. */
@@ -235,12 +243,12 @@ object HyprMotion {
         } + fadeOut(workspacesOutSpec(reduce))
     }
 
-    /** Shared-element bounds: soft critically-damped spring instead of M3's default. */
+    /** Shared-element bounds: 0.2 s so the avatar/name finish with the student-card open. */
     @Composable
     fun rememberBoundsTransform(): BoundsTransform {
         val reduce = LocalReduceMotion.current
         return remember(reduce) {
-            BoundsTransform { _, _ -> easySpring<Rect>(reduce = reduce) }
+            BoundsTransform { _, _ -> spec<Rect>(QUICK_SPEED, HyprEasing.EaseOutQuint, reduce) }
         }
     }
 }

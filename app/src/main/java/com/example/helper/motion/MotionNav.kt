@@ -29,6 +29,7 @@ object MotionNav {
         reduceMotion: Boolean,
     ): EnterTransition =
         if (isTabSwitch(from, to)) HyprMotion.workspaceIn(reduceMotion)
+        else if (to.destination.route == Routes.STUDENT) HyprMotion.quickPopinIn(reduceMotion)
         else HyprMotion.popinIn(reduceMotion)
 
     fun exit(

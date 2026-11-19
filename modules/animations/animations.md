@@ -132,6 +132,7 @@ Everything stays on the classpath the project already has. Third-party animation
   - `motion/MotionEffects.kt` — `pressScale`, `popOnChange`, `shake`.
   - `AppNavHost` uses `MotionNav` + `SharedMotionHost`; `AndroidManifest.xml` sets `android:enableOnBackInvokedCallback="true"`.
   - Micro-interactions: attendance counters and student rows/icons pop with the spec vocabulary; tag/template chips pop on selection/state; long-press stays on chip modifier.
+  - Student-card open is a deliberate 0.2 s exception to the "one leaf per category" rule: `MotionNav.enter` picks `HyprMotion.quickPopinIn` for `Routes.STUDENT`, and `rememberBoundsTransform` uses the same 0.2 s spec so the avatar/name finish together. All other routes keep their Hyprland timings.
 - **Remaining** (next first):
   1. Shared elements (student photo/name) if needed, or skip if blocked by scope.
   2. QA per script (animator scale 0/0.5/2, RTL, rapid taps, predictive back).
