@@ -39,11 +39,13 @@ fun Modifier.sharedElementIfPossible(
     animatedVisibilityScope: AnimatedVisibilityScope?,
 ): Modifier {
     val sharedScope = LocalSharedTransitionScope.current
+    val boundsTransform = HyprMotion.rememberBoundsTransform()
     if (animatedVisibilityScope == null || sharedScope == null) return this
     return with(sharedScope) {
         this@sharedElementIfPossible.sharedElement(
             sharedContentState = rememberSharedContentState(key = key),
             animatedVisibilityScope = animatedVisibilityScope,
+            boundsTransform = boundsTransform,
         )
     }
 }
@@ -61,11 +63,13 @@ fun Modifier.sharedBoundsIfPossible(
     animatedVisibilityScope: AnimatedVisibilityScope?,
 ): Modifier {
     val sharedScope = LocalSharedTransitionScope.current
+    val boundsTransform = HyprMotion.rememberBoundsTransform()
     if (animatedVisibilityScope == null || sharedScope == null) return this
     return with(sharedScope) {
         this@sharedBoundsIfPossible.sharedBounds(
             sharedContentState = rememberSharedContentState(key = key),
             animatedVisibilityScope = animatedVisibilityScope,
+            boundsTransform = boundsTransform,
         )
     }
 }

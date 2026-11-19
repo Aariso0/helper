@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.helper.coredata.entity.SchoolClass
+import com.example.helper.motion.hyprAnimateItem
 import com.example.helper.roster.ui.import.ImportScreen
 import com.example.helper.roster.viewmodel.ClassRow
 import com.example.helper.roster.viewmodel.classListViewModel
@@ -150,6 +151,7 @@ fun ClassListScreen(
                         onClick = { onOpenClass(row.schoolClass.id) },
                         onEdit = { classBeingEdited = row.schoolClass },
                         onDelete = { classBeingDeleted = row.schoolClass },
+                        modifier = hyprAnimateItem(),
                     )
                 }
                 item { Spacer(Modifier.height(72.dp)) } // FAB clearance
@@ -225,11 +227,12 @@ private fun ClassRowItem(
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -46,10 +46,11 @@ fun StudentRow(
     status: AttendanceStatus,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = ShellDimens.rowMinHeight)
             .pressScale(interactionSource)

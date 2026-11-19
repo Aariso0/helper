@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.helper.motion.hyprAnimateItem
 import com.example.helper.studentfeedback.viewmodel.FeedbackDateFilter
 import com.example.helper.studentfeedback.viewmodel.feedbackViewModel
 import kotlinx.coroutines.launch
@@ -136,6 +137,7 @@ fun FeedbackScreen(
                                 } else {
                                     null
                                 },
+                                modifier = hyprAnimateItem(),
                             )
                         }
                     }
@@ -159,8 +161,9 @@ private fun DateHeader(epochDay: Long) {
 private fun NoteRow(
     note: com.example.helper.coredata.entity.FeedbackNote,
     studentName: String?,
+    modifier: Modifier = Modifier,
 ) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Column(modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = note.tagLabel,

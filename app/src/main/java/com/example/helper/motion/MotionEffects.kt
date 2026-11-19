@@ -2,7 +2,6 @@ package com.example.helper.motion
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.keyframes
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.LaunchedEffect
@@ -30,10 +29,11 @@ fun Modifier.pressScale(
     downScale: Float = 0.97f,
 ): Modifier = composed {
     if (!enabled) return@composed this
+    val reduce = LocalReduceMotion.current
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (pressed) downScale else 1f,
-        animationSpec = if (pressed) Motion.Spatial.Fast else Motion.Spatial.Pop,
+        animationSpec = if (pressed) HyprMotion.workspacesInSpec(reduce) else HyprMotion.workspacesOutSpec(reduce),
         label = "pressScale",
     )
     graphicsLayer {
@@ -43,21 +43,21 @@ fun Modifier.pressScale(
 }
 
 /**
- * Pop scale when [trigger] changes value.
+ * Pop from the Hyprland popin scale (87%) when [trigger] changes value.
  *
  * The first composition records the trigger without animating: an entrance
  * pop on every screen that happens to start with a non-null trigger reads as
  * a glitch, and the motion card forbids animating first composition.
  */
-fun Modifier.popOnChange(trigger: Any?, targetScale: Float = 1.06f): Modifier = composed {
+fun Modifier.popOnChange(trigger: Any?, targetScale: Float = 1f): Modifier = composed {
     val scale = remember { Animatable(1f) }
     var lastTrigger by remember { mutableStateOf(trigger) }
+    val reduce = LocalReduceMotion.current
     LaunchedEffect(trigger) {
         if (trigger == null || trigger == lastTrigger) return@LaunchedEffect
         lastTrigger = trigger
-        scale.snapTo(0.96f)
-        scale.animateTo(targetScale, Motion.Spatial.Pop)
-        scale.animateTo(1f, Motion.Spatial.Pop)
+        scale.snapTo(HyprMotion.POPIN_SCALE)
+        scale.animateTo(targetScale, HyprMotion.fadeSpec(reduce))
     }
     graphicsLayer {
         scaleX = scale.value
@@ -69,23 +69,11 @@ fun Modifier.popOnChange(trigger: Any?, targetScale: Float = 1.06f): Modifier = 
 fun Modifier.shake(trigger: Any?): Modifier = composed {
     val offsetX = remember { Animatable(0f) }
     var lastTrigger by remember { mutableStateOf(trigger) }
+    val reduce = LocalReduceMotion.current
     LaunchedEffect(trigger) {
         if (trigger == null || trigger == lastTrigger) return@LaunchedEffect
         lastTrigger = trigger
-        offsetX.animateTo(
-            targetValue = 0f,
-            animationSpec = keyframes {
-                durationMillis = 280
-                0f at 0
-                (-4f) at 40
-                4f at 80
-                (-3f) at 120
-                3f at 160
-                (-2f) at 200
-                2f at 240
-                0f at 280
-            },
-        )
+        offsetX.animateTo(targetValue = 0f, animationSpec = HyprMotion.shakeSpec(reduce))
     }
     graphicsLayer { translationX = offsetX.value }
 }

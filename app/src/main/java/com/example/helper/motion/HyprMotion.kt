@@ -18,10 +18,12 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalContext
 import kotlin.math.roundToInt
@@ -223,4 +225,15 @@ object HyprMotion {
             BoundsTransform { _, _ -> easySpring<Rect>(reduce = reduce) }
         }
     }
+}
+
+/** One line per keyed LazyColumn item: placement = windowsMove, fades = layers. */
+@Composable
+fun LazyItemScope.hyprAnimateItem(): Modifier {
+    val reduce = LocalReduceMotion.current
+    return Modifier.animateItem(
+        placementSpec = HyprMotion.easySpring(reduce = reduce),
+        fadeInSpec = HyprMotion.fadeInSpec<Float>(reduce),
+        fadeOutSpec = HyprMotion.fadeOutSpec<Float>(reduce),
+    )
 }
